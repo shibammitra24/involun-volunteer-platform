@@ -80,6 +80,8 @@
     --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
     --sidebar-border: oklch(0.923 0.003 48.717);
     --sidebar-ring: oklch(0.709 0.01 56.259);
+    --font-scale: 1;
+    --letter-spacing: normal;
 }
 
 .dark {
@@ -121,9 +123,15 @@
     @apply border-border outline-ring/50;
     }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-all duration-300;
+    letter-spacing: var(--letter-spacing, normal);
     }
   html {
-    @apply font-mono;
+    @apply font-mono transition-all duration-300;
+    font-size: calc(100% * var(--font-scale, 1));
     }
+  ::selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
 }

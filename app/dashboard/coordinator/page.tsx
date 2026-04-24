@@ -514,7 +514,7 @@ export default function CoordinatorDashboardPage() {
 
             {/* Detail Panel */}
             <Sheet open={!!selectedNeed} onOpenChange={(open) => !open && setSelectedNeed(null)}>
-                <SheetContent className="sm:max-w-md md:max-w-lg">
+                <SheetContent className="sm:max-w-md md:max-w-lg overflow-y-auto p-6">
                     {selectedNeed && (
                         <div className="h-full flex flex-col">
                             <SheetHeader className="space-y-1 pr-6">
@@ -624,7 +624,7 @@ export default function CoordinatorDashboardPage() {
                                                                     size="sm" 
                                                                     className="h-7 text-[10px] px-2"
                                                                     onClick={() => handleAssign(match.volunteer_id, match.reason)}
-                                                                    disabled={isAssigning !== null || selectedNeed.status !== "open"}
+                                                                    disabled={isAssigning !== null || selectedNeed.status === "completed"}
                                                                 >
                                                                     {isAssigning === match.volunteer_id ? (
                                                                         <Loader2 className="size-3 animate-spin" />
@@ -720,7 +720,7 @@ export default function CoordinatorDashboardPage() {
 
             {/* Impact Report Sheet */}
             <Sheet open={showReportSheet} onOpenChange={setShowReportSheet}>
-                <SheetContent className="sm:max-w-xl overflow-y-auto">
+                <SheetContent className="sm:max-w-xl overflow-y-auto p-6">
                     <SheetHeader className="space-y-1">
                         <div className="flex items-center gap-2 text-primary mb-1">
                             <FileText className="size-5" />

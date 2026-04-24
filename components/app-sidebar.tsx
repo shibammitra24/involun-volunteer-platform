@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
+import { AccessibilityControls } from "@/components/accessibility-controls";
 
 import {
     Sidebar,
@@ -113,6 +114,10 @@ export function AppSidebar() {
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
+
+                <SidebarSeparator />
+                
+                <AccessibilityControls />
             </SidebarContent>
 
             {/* ---- Footer / User ---- */}
