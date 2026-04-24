@@ -1,0 +1,60 @@
+{
+  "submit_need": {
+    "title": "জরুরি প্রয়োজন জমা দিন",
+    "description": "স্বেচ্ছাসেবক সহায়তার প্রয়োজন এমন একটি পরিস্থিতির বিবরণ দিন।",
+    "step1": "জরুরি বিবরণ",
+    "step2": "এআই বিশ্লেষণ",
+    "step3": "পর্যালোচনা ও নিশ্চিতকরণ",
+    "field_need": "জরুরি প্রয়োজনটি কী?",
+    "placeholder_need": "পরিস্থিতি বর্ণনা করুন (যেমন, 'ওয়ার্ড ১২-এ আগুন, ৫ জন স্বেচ্ছাসেবক প্রয়োজন')",
+    "field_location": "অবস্থান",
+    "placeholder_location": "ঠিকানা বা ল্যান্ডমার্ক...",
+    "btn_analyze": "এআই দিয়ে বিশ্লেষণ করুন",
+    "btn_analyzing": "বিশ্লেষণ হচ্ছে...",
+    "review_title": "বিস্তারিত সারাংশ",
+    "review_field_title": "শিরোনাম",
+    "review_field_summary": "সারাংশ",
+    "review_field_urgency": "জরুরিতা",
+    "review_field_category": "বিভাগ",
+    "btn_submit": "রিপোর্ট জমা দিন",
+    "btn_submitting": "জমা হচ্ছে...",
+    "success_title": "প্রয়োজনটি সফলভাবে জমা দেওয়া হয়েছে!",
+    "success_description": "সমন্বয়কারীরা এখন স্বেচ্ছাসেবকদের নিযুক্ত করতে পারবেন।",
+    "btn_another": "আরেকটি রিপোর্ট জমা দিন",
+    "btn_dashboard": "ড্যাশবোর্ডে ফিরে যান",
+    "urgency": {
+      "low": "কম",
+      "medium": "মাঝারি",
+      "high": "বেশি",
+      "critical": "খুব জরুরি"
+    }
+  },
+  "registration": {
+    "title": "স্বেচ্ছাসেবক নিবন্ধন",
+    "description": "আমাদের দ্রুত প্রতিক্রিয়া স্বেচ্ছাসেবক নেটওয়ার্কে যোগ দিন।",
+    "section_personal": "ব্যক্তিগত তথ্য",
+    "field_name": "পুরো নাম",
+    "field_email": "ইমেল",
+    "field_phone": "ফোন নম্বর",
+    "section_skills": "দক্ষতা ও প্রাপ্যতা",
+    "field_skills": "প্রাথমিক দক্ষতা",
+    "field_availability": "প্রাপ্যতা",
+    "btn_register": "স্বেচ্ছাসেবক হিসেবে নিবন্ধন করুন",
+    "btn_registering": "নিবন্ধন হচ্ছে...",
+    "success_title": "সফলভাবে নিবন্ধিত!",
+    "success_description": "InVolun-এ যোগদানের জন্য ধন্যবাদ। আপনি এখন রেসপন্স নেটওয়ার্কের অংশ।",
+    "skills": {
+      "first_aid": "প্রাথমিক চিকিৎসা",
+      "logistics": "লজিস্টিকস",
+      "cooking": "রান্না করা",
+      "counseling": "কাউন্সেলিং",
+      "heavy_lifting": "ভারী জিনিস তোলা",
+      "transport": "পরিবহন"
+    },
+    "availability": {
+      "weekdays": "সাপ্তাহিক কর্মদিবস",
+      "weekends": "ছুটির দিন",
+      "on_call": "অন-কল"
+    }
+  }
+}

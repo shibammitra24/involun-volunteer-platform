@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { db } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
     try {
@@ -13,38 +13,34 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const supabase = createServerSupabaseClient();
-
-        const { data, error } = await supabase
-            .from("volunteers")
-            .insert({
-                name,
-                email,
-                skills, // Expected to be an array of strings
-                availability, // Expected to be a string
-                location,
-                is_available: true,
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Supabase Error (Volunteer Registration):", error);
-            if (error.code === "23505") {
-                return NextResponse.json(
-                    { error: "This email is already registered" },
-                    { status: 400 },
-                );
-            }
+        // Check if email already exists
+        const existing = await db.collection("volunteers")
+            .where("email", "==", email)
+            .get();
+        
+        if (!existing.empty) {
             return NextResponse.json(
-                { error: "Database error", details: error.message },
-                { status: 500 },
+                { error: "This email is already registered" },
+                { status: 400 },
             );
         }
 
+        const volunteerData = {
+            name,
+            email,
+            skills, // Expected to be an array of strings
+            availability, // Expected to be a string
+            location,
+            is_available: true,
+            created_at: new Date().toISOString(),
+        };
+
+        const docRef = await db.collection("volunteers").add(volunteerData);
+        const savedVolunteer = { id: docRef.id, ...volunteerData };
+
         return NextResponse.json({
             success: true,
-            volunteer: data,
+            volunteer: savedVolunteer,
         });
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unknown error";

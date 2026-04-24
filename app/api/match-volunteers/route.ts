@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { db } from "@/lib/firebase-admin";
 
 const MATCH_SYSTEM_PROMPT = `You are an NGO coordinator. Given a community need and a list of available volunteers, find the top 3 best-fit volunteers.
 
@@ -28,28 +28,25 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "need_id is required" }, { status: 400 });
         }
 
-        const supabase = createServerSupabaseClient();
-
         // 1. Fetch available volunteers
-        const { data: volunteers, error: vError } = await supabase
-            .from("volunteers")
-            .select("id, name, skills, availability, location")
-            .eq("is_available", true)
-            .limit(50); // Get a reasonable sample for AI to process
+        const snapshot = await db.collection("volunteers")
+            .where("is_available", "==", true)
+            .limit(50)
+            .get();
 
-        if (vError) {
-            console.error("Supabase Error (Fetch Volunteers):", vError);
-            return NextResponse.json({ error: "Database error" }, { status: 500 });
-        }
+        const volunteers = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        })) as any[];
 
-        if (!volunteers || volunteers.length === 0) {
+        if (volunteers.length === 0) {
             return NextResponse.json({ matches: [], message: "No available volunteers found" });
         }
 
         // 2. AI Matching
-        const apiKey = process.env.GROQ_API_KEY;
+        const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
         if (!apiKey) {
-            return NextResponse.json({ error: "GROQ_API_KEY missing" }, { status: 500 });
+            return NextResponse.json({ error: "GOOGLE_GEMINI_API_KEY missing" }, { status: 500 });
         }
 
         const needInfo = `Title: ${title}
@@ -65,24 +62,32 @@ Location: ${location || "Unknown"}`;
             )
             .join("\n");
 
-        const groq = new Groq({ apiKey });
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel(
+            { 
+                model: "gemini-2.5-flash",
+                generationConfig: {
+                    responseMimeType: "application/json",
+                }
+            },
+            { apiVersion: "v1beta" }
+        );
 
         try {
-            const chatCompletion = await groq.chat.completions.create({
-                model: "llama-3.3-70b-versatile",
-                messages: [
-                    { role: "system", content: MATCH_SYSTEM_PROMPT },
-                    {
-                        role: "user",
-                        content: `Need:\n${needInfo}\n\nAvailable Volunteers:\n${volunteersList}`,
-                    },
-                ],
-                response_format: { type: "json_object" },
-                temperature: 0.3,
-            });
-            const text = chatCompletion.choices[0]?.message?.content ?? "";
+            const prompt = `${MATCH_SYSTEM_PROMPT}\n\nNeed:\n${needInfo}\n\nAvailable Volunteers:\n${volunteersList}`;
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text();
 
-            const parsed = JSON.parse(text);
+            let parsed;
+            try {
+                parsed = JSON.parse(text);
+            } catch (e) {
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error("Failed to parse AI response as JSON");
+                parsed = JSON.parse(jsonMatch[0]);
+            }
+            
             // Support both { matches: [...] } and a bare array
             const matches: MatchResult[] = Array.isArray(parsed) ? parsed : parsed.matches ?? [];
 

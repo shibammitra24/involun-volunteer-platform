@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { db } from "@/lib/firebase-admin";
 
 function mapUrgency(u: string): "low" | "medium" | "high" {
     switch (u.toLowerCase()) {
         case "high":
+        case "critical":
             return "high";
         case "low":
             return "low";
@@ -20,33 +21,24 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const supabase = createServerSupabaseClient();
+        const needData = {
+            title,
+            raw_description,
+            ai_summary,
+            urgency: mapUrgency(urgency),
+            category,
+            location: location || null,
+            status: "open",
+            created_at: new Date().toISOString(),
+        };
 
-        const { data, error } = await supabase
-            .from("needs")
-            .insert({
-                title,
-                raw_description,
-                ai_summary,
-                urgency: mapUrgency(urgency),
-                category,
-                location: location || null,
-                status: "open",
-            })
-            .select()
-            .single();
+        const docRef = await db.collection("needs").add(needData);
+        const savedNeed = { id: docRef.id, ...needData };
 
-        if (error) {
-            console.error("Supabase Error:", error);
-            return NextResponse.json(
-                { error: "Database error", details: error.message },
-                { status: 500 },
-            );
-        }
-
-        return NextResponse.json({ success: true, need: data });
+        return NextResponse.json({ success: true, need: savedNeed });
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unknown error";
+        console.error("Save Need API Error:", err);
         return NextResponse.json(
             { error: "Save failed", details: message },
             { status: 500 },

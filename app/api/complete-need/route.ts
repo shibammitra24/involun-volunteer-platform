@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { db } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
     try {
@@ -9,44 +9,30 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "need_id is required" }, { status: 400 });
         }
 
-        const supabase = createServerSupabaseClient();
-
-        // 1. Fetch all assignments for this need to get the volunteer IDs
-        const { data: assignments, error: fetchError } = await supabase
-            .from("assignments")
-            .select("volunteer_id")
-            .eq("need_id", need_id);
-
-        if (fetchError) throw fetchError;
-
-        const volunteerIds = assignments?.map(a => a.volunteer_id) || [];
-
-        // 2. Perform updates in a sequence (or ideally a transaction/RPC)
-        // Update Need Status
-        const { error: needError } = await supabase
-            .from("needs")
-            .update({ status: "completed" })
-            .eq("id", need_id);
-        
-        if (needError) throw needError;
-
-        // Update Assignments Status
-        const { error: assignError } = await supabase
-            .from("assignments")
-            .update({ status: "completed" })
-            .eq("need_id", need_id);
-        
-        if (assignError) throw assignError;
-
-        // Free up Volunteers
-        if (volunteerIds.length > 0) {
-            const { error: volError } = await supabase
-                .from("volunteers")
-                .update({ is_available: true })
-                .in("id", volunteerIds);
+        await db.runTransaction(async (transaction) => {
+            const needRef = db.collection("needs").doc(need_id);
             
-            if (volError) throw volError;
-        }
+            // 1. Fetch assignments for this need
+            const assignmentsSnapshot = await transaction.get(
+                db.collection("assignments").where("need_id", "==", need_id)
+            );
+
+            const volunteerIds = assignmentsSnapshot.docs.map(doc => doc.data().volunteer_id);
+
+            // 2. Update Need Status
+            transaction.update(needRef, { status: "completed" });
+
+            // 3. Update Assignments Status
+            assignmentsSnapshot.docs.forEach(doc => {
+                transaction.update(doc.ref, { status: "completed" });
+            });
+
+            // 4. Free up Volunteers
+            for (const vId of volunteerIds) {
+                const volRef = db.collection("volunteers").doc(vId);
+                transaction.update(volRef, { is_available: true });
+            }
+        });
 
         return NextResponse.json({
             success: true,

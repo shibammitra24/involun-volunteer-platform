@@ -1,0 +1,60 @@
+{
+  "submit_need": {
+    "title": "Submit Urgent Need",
+    "description": "Provide details about a situation requiring volunteer assistance.",
+    "step1": "Emergency Details",
+    "step2": "AI Analysis",
+    "step3": "Review & Confirm",
+    "field_need": "What is the urgent need?",
+    "placeholder_need": "Describe the situation (e.g., 'Fire in Ward 12, need 5 people for evacuation')",
+    "field_location": "Location",
+    "placeholder_location": "Address or landmark...",
+    "btn_analyze": "Analyze with AI",
+    "btn_analyzing": "Analyzing...",
+    "review_title": "Detailed Summary",
+    "review_field_title": "Title",
+    "review_field_summary": "Summary",
+    "review_field_urgency": "Urgency",
+    "review_field_category": "Category",
+    "btn_submit": "Submit Report",
+    "btn_submitting": "Submitting...",
+    "success_title": "Need Submitted Successfully!",
+    "success_description": "Coordinators will now be able to match volunteers.",
+    "btn_another": "Submit Another Report",
+    "btn_dashboard": "Go to Dashboard",
+    "urgency": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    }
+  },
+  "registration": {
+    "title": "Volunteer Registration",
+    "description": "Join our network of rapid response volunteers.",
+    "section_personal": "Personal Information",
+    "field_name": "Full Name",
+    "field_email": "Email",
+    "field_phone": "Phone Number",
+    "section_skills": "Skills & Availability",
+    "field_skills": "Primary Skills",
+    "field_availability": "Availability",
+    "btn_register": "Register as Volunteer",
+    "btn_registering": "Registering...",
+    "success_title": "Registered Successfully!",
+    "success_description": "Thank you for joining InVolun. You are now part of the response network.",
+    "skills": {
+      "first_aid": "First Aid",
+      "logistics": "Logistics",
+      "cooking": "Cooking",
+      "counseling": "Counseling",
+      "heavy_lifting": "Heavy Lifting",
+      "transport": "Transport"
+    },
+    "availability": {
+      "weekdays": "Weekdays",
+      "weekends": "Weekends",
+      "on_call": "On-Call"
+    }
+  }
+}

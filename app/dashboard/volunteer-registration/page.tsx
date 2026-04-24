@@ -24,17 +24,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { useLanguage } from "@/lib/language-context";
 
 const SKILLS = [
-    "Medical",
-    "Food Distribution",
-    "Teaching",
-    "Construction",
-    "Other",
+    "first_aid",
+    "logistics",
+    "cooking",
+    "counseling",
+    "heavy_lifting",
+    "transport",
 ];
-const AVAILABILITY_OPTIONS = ["Weekdays", "Weekends"];
+const AVAILABILITY_OPTIONS = ["weekdays", "weekends", "on_call"];
 
 export default function VolunteerRegistrationPage() {
+    const { t } = useLanguage();
+    
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [location, setLocation] = useState("");
@@ -72,8 +76,8 @@ export default function VolunteerRegistrationPage() {
                 body: JSON.stringify({
                     name,
                     email,
-                    skills: selectedSkills,
-                    availability: selectedAvailability.join(", "),
+                    skills: selectedSkills.map(s => t(`registration.skills.${s}`)),
+                    availability: selectedAvailability.map(a => t(`registration.availability.${a}`)).join(", "),
                     location,
                 }),
             });
@@ -85,9 +89,7 @@ export default function VolunteerRegistrationPage() {
             }
 
             setIsSuccess(true);
-            toast.success("Registration complete!", {
-                description: "Welcome to the team!",
-            });
+            toast.success(t("registration.success_title"));
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Unknown error";
             setError(message);
@@ -104,10 +106,9 @@ export default function VolunteerRegistrationPage() {
                         <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-green-500/10 text-green-600">
                             <CheckCircle2 className="size-6" />
                         </div>
-                        <CardTitle className="text-xl">Registration Successful!</CardTitle>
+                        <CardTitle className="text-xl">{t("registration.success_title")}</CardTitle>
                         <CardDescription>
-                            Thank you for volunteering, {name}. We will contact you when a
-                            matching need arises.
+                            {t("registration.success_description")}
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center">
@@ -135,18 +136,18 @@ export default function VolunteerRegistrationPage() {
             <div className="flex items-center gap-2">
                 <Users className="size-5 text-primary" />
                 <h1 className="text-xl font-bold tracking-tight">
-                    Volunteer Registration
+                    {t("registration.title")}
                 </h1>
             </div>
             <p className="text-sm text-muted-foreground">
-                Join our community of volunteers and help those in need.
+                {t("registration.description")}
             </p>
 
             <Card className="mx-auto max-w-2xl">
                 <CardHeader>
-                    <CardTitle className="text-lg">Become a Volunteer</CardTitle>
+                    <CardTitle className="text-lg">{t("registration.section_personal")}</CardTitle>
                     <CardDescription>
-                        Fill out the form below to register your skills and availability.
+                        {t("registration.description")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -156,11 +157,11 @@ export default function VolunteerRegistrationPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="name" className="flex items-center gap-1.5">
                                     <User className="size-3.5" />
-                                    Full Name
+                                    {t("registration.field_name")}
                                 </Label>
                                 <Input
                                     id="name"
-                                    placeholder="John Doe"
+                                    placeholder={t("registration.field_name")}
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     required
@@ -172,7 +173,7 @@ export default function VolunteerRegistrationPage() {
                             <div className="space-y-2">
                                 <Label htmlFor="email" className="flex items-center gap-1.5">
                                     <Mail className="size-3.5" />
-                                    Email Address
+                                    {t("registration.field_email")}
                                 </Label>
                                 <Input
                                     id="email"
@@ -190,11 +191,11 @@ export default function VolunteerRegistrationPage() {
                         <div className="space-y-2">
                             <Label htmlFor="location" className="flex items-center gap-1.5">
                                 <MapPin className="size-3.5" />
-                                Area / Location
+                                {t("submit_need.field_location")}
                             </Label>
                             <Input
                                 id="location"
-                                placeholder="e.g. Downtown, North District"
+                                placeholder={t("submit_need.placeholder_location")}
                                 value={location}
                                 onChange={(e) => setLocation(e.target.value)}
                                 required
@@ -206,7 +207,7 @@ export default function VolunteerRegistrationPage() {
                         <div className="space-y-3">
                             <Label className="flex items-center gap-1.5">
                                 <Briefcase className="size-3.5" />
-                                Skills
+                                {t("registration.field_skills")}
                             </Label>
                             <div className="grid grid-cols-2 gap-3 rounded-lg border p-4 sm:grid-cols-3">
                                 {SKILLS.map((skill) => (
@@ -221,7 +222,7 @@ export default function VolunteerRegistrationPage() {
                                             htmlFor={`skill-${skill}`}
                                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                         >
-                                            {skill}
+                                            {t(`registration.skills.${skill}`)}
                                         </label>
                                     </div>
                                 ))}
@@ -232,7 +233,7 @@ export default function VolunteerRegistrationPage() {
                         <div className="space-y-3">
                             <Label className="flex items-center gap-1.5">
                                 <Calendar className="size-3.5" />
-                                Availability
+                                {t("registration.field_availability")}
                             </Label>
                             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 rounded-lg border p-4">
                                 {AVAILABILITY_OPTIONS.map((option) => (
@@ -247,7 +248,7 @@ export default function VolunteerRegistrationPage() {
                                             htmlFor={`avail-${option}`}
                                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                         >
-                                            {option}
+                                            {t(`registration.availability.${option}`)}
                                         </label>
                                     </div>
                                 ))}
@@ -271,10 +272,10 @@ export default function VolunteerRegistrationPage() {
                             {isSubmitting ? (
                                 <>
                                     <Loader2 className="mr-2 size-4 animate-spin" />
-                                    Registering...
+                                    {t("registration.btn_registering")}
                                 </>
                             ) : (
-                                "Register as Volunteer"
+                                t("registration.btn_register")
                             )}
                         </Button>
                     </form>

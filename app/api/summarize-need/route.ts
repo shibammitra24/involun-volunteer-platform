@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { db } from "@/lib/firebase-admin";
 
 const AI_SYSTEM_PROMPT = `You are an NGO assistant. Given a raw field report, extract and return ONLY a valid JSON object (no markdown fences, no extra text) with these fields:
 - title: (5 word summary)
@@ -39,45 +39,43 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // ---- Groq ------------------------------------------------
-        const apiKey = process.env.GROQ_API_KEY;
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        // ---- Gemini ------------------------------------------------
+        const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
 
-        if (!apiKey || !supabaseUrl || !supabaseKey) {
-            console.error("Missing environment variables:", {
-                apiKey: !!apiKey,
-                supabaseUrl: !!supabaseUrl,
-                supabaseKey: !!supabaseKey,
-            });
+        if (!apiKey) {
+            console.error("Missing Gemini API key");
             return NextResponse.json(
-                { error: "Server configuration error (missing env vars)" },
+                { error: "Server configuration error (missing AI key)" },
                 { status: 500 },
             );
         }
 
-        const groq = new Groq({ apiKey });
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel(
+            { 
+                model: "gemini-2.5-flash",
+                generationConfig: {
+                    responseMimeType: "application/json",
+                }
+            },
+            { apiVersion: "v1beta" }
+        );
 
         let aiResult: AIResult;
 
         try {
-            const chatCompletion = await groq.chat.completions.create({
-                model: "llama-3.3-70b-versatile",
-                messages: [
-                    { role: "system", content: AI_SYSTEM_PROMPT },
-                    { role: "user", content: `Raw report:\n\n${raw_description}` },
-                ],
-                response_format: { type: "json_object" },
-                temperature: 0.3,
-            });
-            const text = chatCompletion.choices[0]?.message?.content ?? "";
+            const prompt = `${AI_SYSTEM_PROMPT}\n\nRaw report:\n\n${raw_description}`;
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text();
 
-            // Extract JSON from the response (handle markdown fences just in case)
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) {
-                throw new Error("Failed to parse AI response");
+            try {
+                aiResult = JSON.parse(text);
+            } catch (e) {
+                const jsonMatch = text.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error("Failed to parse AI response as JSON");
+                aiResult = JSON.parse(jsonMatch[0]);
             }
-            aiResult = JSON.parse(jsonMatch[0]);
         } catch (aiErr) {
             console.error("AI Generation failed, using fallback:", aiErr);
             // Fallback result so the database part still works
@@ -90,33 +88,23 @@ export async function POST(req: NextRequest) {
             };
         }
 
-        // ---- Supabase ----------------------------------------------
-        const supabase = createServerSupabaseClient();
+        // ---- Firebase ----------------------------------------------
+        const needData = {
+            title: aiResult.title,
+            raw_description,
+            ai_summary: aiResult.summary,
+            urgency: mapUrgency(aiResult.urgency),
+            category: aiResult.category,
+            location: location || null,
+            status: "open",
+            created_at: new Date().toISOString(),
+        };
 
-        const { data, error } = await supabase
-            .from("needs")
-            .insert({
-                title: aiResult.title,
-                raw_description,
-                ai_summary: aiResult.summary,
-                urgency: mapUrgency(aiResult.urgency),
-                category: aiResult.category,
-                location: location || null,
-                status: "open",
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Supabase Error:", error);
-            return NextResponse.json(
-                { error: "Database error", details: error.message },
-                { status: 500 },
-            );
-        }
+        const docRef = await db.collection("needs").add(needData);
+        const savedNeed = { id: docRef.id, ...needData };
 
         return NextResponse.json({
-            need: data,
+            need: savedNeed,
             ai: {
                 ...aiResult,
                 suggested_volunteers_needed: aiResult.suggested_volunteers_needed,

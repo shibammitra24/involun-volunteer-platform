@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { db, admin } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
     try {
@@ -12,46 +12,27 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const supabase = createServerSupabaseClient();
+        // Use a transaction for atomic updates
+        await db.runTransaction(async (transaction) => {
+            const needRef = db.collection("needs").doc(need_id);
+            const volunteerRef = db.collection("volunteers").doc(volunteer_id);
+            const assignmentRef = db.collection("assignments").doc(); // Auto ID
 
-        // 1. Create the assignment
-        const { error: assignError } = await supabase
-            .from("assignments")
-            .insert({
+            // 1. Create the assignment
+            transaction.set(assignmentRef, {
                 need_id,
                 volunteer_id,
                 ai_reason: reason,
-                status: "pending", // Dashboard requirement said status changes to Assigned, 
-                                 // but assignments table has 'pending' | 'accepted' | etc.
-                                 // I'll stick to the schema's 'pending' for the assignment record itself.
+                status: "pending",
+                created_at: new Date().toISOString(),
             });
 
-        if (assignError) {
-            console.error("Assignment Insert Error:", assignError);
-            return NextResponse.json({ error: "Failed to create assignment" }, { status: 500 });
-        }
+            // 2. Update the need status
+            transaction.update(needRef, { status: "assigned" });
 
-        // 2. Update the need status
-        const { error: needError } = await supabase
-            .from("needs")
-            .update({ status: "assigned" })
-            .eq("id", need_id);
-
-        if (needError) {
-            console.error("Need Update Error:", needError);
-            return NextResponse.json({ error: "Failed to update need status" }, { status: 500 });
-        }
-
-        // 3. Update the volunteer availability
-        const { error: volunteerError } = await supabase
-            .from("volunteers")
-            .update({ is_available: false })
-            .eq("id", volunteer_id);
-
-        if (volunteerError) {
-            console.error("Volunteer Update Error:", volunteerError);
-            return NextResponse.json({ error: "Failed to update volunteer availability" }, { status: 500 });
-        }
+            // 3. Update the volunteer availability
+            transaction.update(volunteerRef, { is_available: false });
+        });
 
         return NextResponse.json({ success: true });
     } catch (err: unknown) {

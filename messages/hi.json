@@ -1,0 +1,60 @@
+{
+  "submit_need": {
+    "title": "तत्काल आवश्यकता जमा करें",
+    "description": "स्वयंसेवक सहायता की आवश्यकता वाली स्थिति के बारे में विवरण प्रदान करें।",
+    "step1": "आपातकालीन विवरण",
+    "step2": "एआई विश्लेषण",
+    "step3": "समीक्षा और पुष्टि",
+    "field_need": "तत्काल आवश्यकता क्या है?",
+    "placeholder_need": "स्थिति का वर्णन करें (जैसे, 'वार्ड 12 में आग, निकासी के लिए 5 लोगों की आवश्यकता')",
+    "field_location": "स्थान",
+    "placeholder_location": "पता या मील का पत्थर...",
+    "btn_analyze": "एआई के साथ विश्लेषण करें",
+    "btn_analyzing": "विश्लेषण हो रहा है...",
+    "review_title": "विस्तृत सारांश",
+    "review_field_title": "शीर्षक",
+    "review_field_summary": "सारांश",
+    "review_field_urgency": "अति-आवश्यकता",
+    "review_field_category": "श्रेणी",
+    "btn_submit": "रिपोर्ट जमा करें",
+    "btn_submitting": "जमा हो रहा है...",
+    "success_title": "आवश्यकता सफलतापूर्वक जमा की गई!",
+    "success_description": "समन्वयक अब स्वयंसेवकों का मिलान कर सकेंगे।",
+    "btn_another": "एक और रिपोर्ट जमा करें",
+    "btn_dashboard": "डैशबोर्ड पर जाएं",
+    "urgency": {
+      "low": "कम",
+      "medium": "मध्यम",
+      "high": "उच्च",
+      "critical": "गंभीर"
+    }
+  },
+  "registration": {
+    "title": "स्वयंसेवक पंजीकरण",
+    "description": "हमारे त्वरित प्रतिक्रिया स्वयंसेवक नेटवर्क में शामिल हों।",
+    "section_personal": "व्यक्तिगत जानकारी",
+    "field_name": "पूरा नाम",
+    "field_email": "ईमेल",
+    "field_phone": "फ़ोन नंबर",
+    "section_skills": "कौशल और उपलब्धता",
+    "field_skills": "प्राथमिक कौशल",
+    "field_availability": "उपलब्धता",
+    "btn_register": "स्वयंसेवक के रूप में पंजीकरण करें",
+    "btn_registering": "पंजीकरण हो रहा है...",
+    "success_title": "सफलतापूर्वक पंजीकृत!",
+    "success_description": "InVolun में शामिल होने के लिए धन्यवाद। अब आप प्रतिक्रिया नेटवर्क का हिस्सा हैं।",
+    "skills": {
+      "first_aid": "प्राथमिक उपचार",
+      "logistics": "रसद (लॉजिस्टिक्स)",
+      "cooking": "खाना बनाना",
+      "counseling": "परामर्श",
+      "heavy_lifting": "भारी सामान उठाना",
+      "transport": "परिवहन"
+    },
+    "availability": {
+      "weekdays": "कार्यदिवस (सप्ताह के दिन)",
+      "weekends": "सप्ताहांत",
+      "on_call": "ऑन-कॉल"
+    }
+  }
+}

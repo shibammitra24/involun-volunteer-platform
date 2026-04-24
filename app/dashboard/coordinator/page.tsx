@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/firebase";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -106,13 +107,10 @@ export default function CoordinatorDashboardPage() {
             }
 
             try {
-                const { data, error } = await supabase
-                    .from("assignments")
-                    .select("*, volunteers(*)")
-                    .eq("need_id", selectedNeed.id);
-                
-                if (error) throw error;
-                setCurrentAssignments(data);
+                const res = await fetch(`/api/get-assignments?need_id=${selectedNeed.id}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Failed to fetch assignments");
+                setCurrentAssignments(data.assignments);
             } catch (err) {
                 console.error("Fetch Assignments Error:", err);
             }
@@ -258,51 +256,29 @@ export default function CoordinatorDashboardPage() {
     }, [user, router]);
 
     useEffect(() => {
-        const fetchNeeds = async () => {
-            try {
-                const res = await fetch("/api/get-needs");
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || "Failed to fetch");
-                setNeeds(data.needs);
-            } catch (err: unknown) {
-                setError(err instanceof Error ? err.message : "Unknown error");
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         if (user?.role === "coordinator") {
-            fetchNeeds();
+            setIsLoading(true);
+            
+            // Real-time subscription with Firestore
+            const q = query(collection(db, "needs"), orderBy("created_at", "desc"));
+            
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const needsData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    // Handle Firestore Timestamp vs ISO string
+                    created_at: (doc.data().created_at as any)?.toDate?.()?.toISOString() || doc.data().created_at
+                })) as Need[];
+                
+                setNeeds(needsData);
+                setIsLoading(false);
+            }, (err) => {
+                console.error("Firestore Subscription Error:", err);
+                setError("Failed to stream real-time updates.");
+                setIsLoading(false);
+            });
 
-            // Real-time subscription
-            const channel = supabase
-                .channel("needs_changes")
-                .on(
-                    "postgres_changes",
-                    {
-                        event: "*",
-                        schema: "public",
-                        table: "needs",
-                    },
-                    (payload) => {
-                        if (payload.eventType === "INSERT") {
-                            setNeeds((prev) => [payload.new as Need, ...prev]);
-                        } else if (payload.eventType === "UPDATE") {
-                            setNeeds((prev) =>
-                                prev.map((n) =>
-                                    n.id === payload.new.id ? (payload.new as Need) : n
-                                )
-                            );
-                        } else if (payload.eventType === "DELETE") {
-                            setNeeds((prev) => prev.filter((n) => n.id !== payload.old.id));
-                        }
-                    }
-                )
-                .subscribe();
-
-            return () => {
-                supabase.removeChannel(channel);
-            };
+            return () => unsubscribe();
         }
     }, [user]);
 

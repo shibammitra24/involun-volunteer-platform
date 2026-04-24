@@ -1,61 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { db } from "@/lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
     try {
-        const supabase = createServerSupabaseClient();
-        const apiKey = process.env.GROQ_API_KEY;
+        const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
 
         if (!apiKey) {
-            return NextResponse.json({ error: "GROQ_API_KEY missing" }, { status: 500 });
+            return NextResponse.json({ error: "GOOGLE_GEMINI_API_KEY missing" }, { status: 500 });
         }
 
-        // 1. Fetch completed assignments with need details
-        // We join with 'needs' to get the impact details
-        const { data: assignments, error: fetchError } = await supabase
-            .from("assignments")
-            .select(`
-                id,
-                ai_reason,
-                status,
-                created_at,
-                needs (
-                    title,
-                    ai_summary,
-                    urgency,
-                    category,
-                    location
-                ),
-                volunteers (
-                    name,
-                    skills
-                )
-            `)
-            .eq("status", "completed")
-            .order("created_at", { ascending: false })
-            .limit(20);
+        // 1. Fetch completed assignments
+        const assignmentsSnapshot = await db.collection("assignments")
+            .where("status", "==", "completed")
+            .orderBy("created_at", "desc")
+            .limit(20)
+            .get();
 
-        if (fetchError) {
-            console.error("Fetch Assignments Error:", fetchError);
-            return NextResponse.json({ error: "Failed to fetch assignment data" }, { status: 500 });
-        }
-
-        if (!assignments || assignments.length === 0) {
+        if (assignmentsSnapshot.empty) {
             return NextResponse.json({ 
                 report: "No completed assignments found to generate a report from. Assign volunteers and mark tasks as 'completed' first.",
                 empty: true
             });
         }
 
-        // 2. Format data for AI
-        const dataSummary = assignments.map(a => {
-            const need = a.needs as any;
-            const vol = a.volunteers as any;
-            return `- Need: ${need.title} (${need.category}) in ${need.location}. Volunteer: ${vol.name} (${vol.skills.join(", ")}). Outcome: ${need.ai_summary}`;
-        }).join("\n");
+        // 2. Fetch related needs and volunteers to format data for AI
+        const assignments = assignmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        
+        // Use Sets to collect unique IDs
+        const needIds = [...new Set(assignments.map(a => a.need_id))];
+        const volunteerIds = [...new Set(assignments.map(a => a.volunteer_id))];
 
-        const groq = new Groq({ apiKey });
+        // Fetch all needed data
+        const needsMap = new Map();
+        if (needIds.length > 0) {
+            const needsSnapshot = await db.collection("needs").where("__name__", "in", needIds).get();
+            needsSnapshot.docs.forEach(doc => needsMap.set(doc.id, doc.data()));
+        }
+
+        const volsMap = new Map();
+        if (volunteerIds.length > 0) {
+            const volsSnapshot = await db.collection("volunteers").where("__name__", "in", volunteerIds).get();
+            volsSnapshot.docs.forEach(doc => volsMap.set(doc.id, doc.data()));
+        }
+
+        // 3. Format data for AI
+        const dataSummary = assignments.map(a => {
+            const need = needsMap.get(a.need_id);
+            const vol = volsMap.get(a.volunteer_id);
+            if (!need || !vol) return null;
+            return `- Need: ${need.title} (${need.category}) in ${need.location}. Volunteer: ${vol.name} (${vol.skills.join(", ")}). Outcome: ${need.ai_summary}`;
+        }).filter(Boolean).join("\n");
+
+        if (!dataSummary) {
+            return NextResponse.json({ 
+                report: "No valid data found to generate a report.",
+                empty: true
+            });
+        }
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel(
+            { model: "gemini-2.5-flash" },
+            { apiVersion: "v1beta" }
+        );
 
         const systemPrompt = `You are an expert NGO communications specialist. Your goal is to write compelling donor impact reports that highlight the human impact and efficiency of volunteer assignments.`;
         const userPrompt = `Summarize these resolved volunteer assignments into a 3-paragraph donor impact report. Be specific about numbers and outcomes:
@@ -63,16 +71,9 @@ export async function POST(req: NextRequest) {
 [data]
 ${dataSummary}`;
 
-        const chatCompletion = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt },
-            ],
-            temperature: 0.7,
-        });
-
-        const report = chatCompletion.choices[0]?.message?.content ?? "Failed to generate report.";
+        const result = await model.generateContent(`${systemPrompt}\n\n${userPrompt}`);
+        const response = await result.response;
+        const report = response.text() || "Failed to generate report.";
 
         return NextResponse.json({ success: true, report });
     } catch (err: unknown) {

@@ -37,6 +37,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { useLanguage } from "@/lib/language-context";
 
 interface AiResult {
     title: string;
@@ -57,6 +58,8 @@ const URGENCY_COLORS: Record<string, string> = {
 };
 
 export default function SubmitNeedPage() {
+    const { t } = useLanguage();
+
     // Stage 1: Input
     const [location, setLocation] = useState("");
     const [rawDescription, setRawDescription] = useState("");
@@ -155,19 +158,18 @@ export default function SubmitNeedPage() {
                     <CheckCircle2 className="size-10" />
                 </div>
                 <div className="space-y-2">
-                    <h1 className="text-3xl font-bold tracking-tight">Mission Logged!</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">{t("submit_need.success_title")}</h1>
                     <p className="text-muted-foreground">
-                        Your report has been analyzed, reviewed, and stored in our database.
-                        Coordinators will now be able to match volunteers.
+                        {t("submit_need.success_description")}
                     </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Button onClick={handleReset} size="lg" className="gap-2 w-full sm:w-auto">
                         <FileText className="size-4" />
-                        Submit Another Report
+                        {t("submit_need.btn_another")}
                     </Button>
                     <Button variant="outline" size="lg" onClick={() => window.location.href = "/dashboard/coordinator"} className="w-full sm:w-auto">
-                        Go to Dashboard
+                        {t("submit_need.btn_dashboard")}
                     </Button>
                 </div>
             </div>
@@ -183,23 +185,23 @@ export default function SubmitNeedPage() {
                         <ChevronLeft className="size-4" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Review & Finalize</h1>
-                        <p className="text-sm text-muted-foreground">AI made some suggestions. Feel free to tweak them manually.</p>
+                        <h1 className="text-2xl font-bold tracking-tight">{t("submit_need.step3")}</h1>
+                        <p className="text-sm text-muted-foreground">{t("submit_need.description")}</p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card className="md:col-span-2">
                         <CardHeader>
-                            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Detailed Summary</CardTitle>
+                            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{t("submit_need.review_title")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label>Report Title</Label>
+                                <Label>{t("submit_need.review_field_title")}</Label>
                                 <Input value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} placeholder="Short descriptive title" />
                             </div>
                             <div className="space-y-2">
-                                <Label>Public Summary (Donor View)</Label>
+                                <Label>{t("submit_need.review_field_summary")}</Label>
                                 <Textarea 
                                     className="min-h-[120px] italic" 
                                     value={editedSummary} 
@@ -212,13 +214,13 @@ export default function SubmitNeedPage() {
 
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Classifications</CardTitle>
+                            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{t("submit_need.review_title")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-1.5">
                                     <Tag className="size-3.5" />
-                                    Category
+                                    {t("submit_need.review_field_category")}
                                 </Label>
                                 <Select value={editedCategory} onValueChange={setEditedCategory}>
                                     <SelectTrigger>
@@ -233,14 +235,18 @@ export default function SubmitNeedPage() {
                             <div className="space-y-2">
                                 <Label className="flex items-center gap-1.5">
                                     <AlertTriangle className="size-3.5" />
-                                    Urgency
+                                    {t("submit_need.review_field_urgency")}
                                 </Label>
                                 <Select value={editedUrgency} onValueChange={setEditedUrgency}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select Urgency" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {URGENCY_LEVELS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                                        {URGENCY_LEVELS.map(u => (
+                                            <SelectItem key={u} value={u.toLowerCase()}>
+                                                {t(`submit_need.urgency.${u.toLowerCase()}`)}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -248,7 +254,7 @@ export default function SubmitNeedPage() {
                             <Separator />
 
                             <div className="space-y-1">
-                                <Label className="text-[10px] uppercase text-muted-foreground">Location</Label>
+                                <Label className="text-[10px] uppercase text-muted-foreground">{t("submit_need.field_location")}</Label>
                                 <p className="text-sm font-medium flex items-center gap-1">
                                     <MapPin className="size-3.5" />
                                     {location || "Unspecified"}
@@ -260,7 +266,7 @@ export default function SubmitNeedPage() {
 
                 <Button className="w-full h-12 text-lg gap-2" size="lg" onClick={handleFinalSubmit} disabled={isSaving}>
                     {isSaving ? <Loader2 className="size-5 animate-spin" /> : <Check className="size-5" />}
-                    Confirm & Submit Record
+                    {isSaving ? t("submit_need.btn_submitting") : t("submit_need.btn_submit")}
                 </Button>
             </div>
         );
@@ -271,10 +277,10 @@ export default function SubmitNeedPage() {
         <div className="mx-auto max-w-2xl space-y-6">
             <div className="flex items-center gap-2">
                 <FileText className="size-5 text-primary" />
-                <h1 className="text-xl font-bold tracking-tight">Field Report Submission</h1>
+                <h1 className="text-xl font-bold tracking-tight">{t("submit_need.title")}</h1>
             </div>
             <p className="text-sm text-muted-foreground">
-                Enter the raw details from the field. AI will help categorize it, and you can review it before saving.
+                {t("submit_need.description")}
             </p>
 
             <Card>
@@ -283,11 +289,11 @@ export default function SubmitNeedPage() {
                         <div className="space-y-2">
                             <Label htmlFor="submitter-name" className="flex items-center gap-1.5">
                                 <User className="size-3.5" />
-                                Submitter Name
+                                {t("registration.field_name")}
                             </Label>
                             <Input
                                 id="submitter-name"
-                                placeholder="Your name (optional)"
+                                placeholder={t("registration.field_name")}
                                 value={submitterName}
                                 onChange={(e) => setSubmitterName(e.target.value)}
                                 disabled={isAnalyzing}
@@ -296,11 +302,11 @@ export default function SubmitNeedPage() {
                         <div className="space-y-2">
                             <Label htmlFor="location" className="flex items-center gap-1.5">
                                 <MapPin className="size-3.5" />
-                                Location
+                                {t("submit_need.field_location")}
                             </Label>
                             <Input
                                 id="location"
-                                placeholder="Village, District, etc."
+                                placeholder={t("submit_need.placeholder_location")}
                                 value={location}
                                 onChange={(e) => setLocation(e.target.value)}
                                 disabled={isAnalyzing}
@@ -309,10 +315,10 @@ export default function SubmitNeedPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="raw-description">Full Report Description</Label>
+                        <Label htmlFor="raw-description">{t("submit_need.field_need")}</Label>
                         <Textarea
                             id="raw-description"
-                            placeholder="Provide a detailed account of the situation..."
+                            placeholder={t("submit_need.placeholder_need")}
                             className="min-h-[200px] resize-y"
                             value={rawDescription}
                             onChange={(e) => setRawDescription(e.target.value)}
@@ -332,12 +338,12 @@ export default function SubmitNeedPage() {
                         {isAnalyzing ? (
                             <>
                                 <Loader2 className="mr-2 size-4 animate-spin" />
-                                AI Analyzing Situation...
+                                {t("submit_need.btn_analyzing")}
                             </>
                         ) : (
                             <>
                                 <Sparkles className="mr-2 size-4" />
-                                Analyze & Categorize with AI
+                                {t("submit_need.btn_analyze")}
                             </>
                         )}
                     </Button>
