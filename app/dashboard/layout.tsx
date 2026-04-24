@@ -44,7 +44,7 @@ export default function DashboardLayout({
                             InVolun Platform
                         </span>
                     </header>
-                    <main className="flex-1 overflow-auto p-6">{children}</main>
+                    <main className="flex-1 overflow-x-hidden p-4 sm:p-6">{children}</main>
                 </SidebarInset>
             </SidebarProvider>
         </TooltipProvider>

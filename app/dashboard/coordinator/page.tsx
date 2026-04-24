@@ -382,8 +382,8 @@ export default function CoordinatorDashboardPage() {
             </div>
 
             {/* Filters Bar */}
-            <Card className="bg-muted/30">
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-end gap-3 p-4">
+            <Card className="bg-muted/30 border-none sm:border">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-end gap-4 p-4 lg:p-6">
                     <div className="space-y-1.5">
                         <Label htmlFor="search" className="text-[10px] uppercase tracking-wider text-muted-foreground">Search</Label>
                         <div className="relative">
@@ -398,7 +398,7 @@ export default function CoordinatorDashboardPage() {
                         </div>
                     </div>
 
-                    <div className="w-[140px] space-y-1.5">
+                    <div className="w-full space-y-1.5">
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Urgency</Label>
                         <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
                             <SelectTrigger className="h-9">
@@ -414,7 +414,7 @@ export default function CoordinatorDashboardPage() {
                         </Select>
                     </div>
 
-                    <div className="w-[140px] space-y-1.5">
+                    <div className="w-full space-y-1.5">
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Category</Label>
                         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                             <SelectTrigger className="h-9">
@@ -431,7 +431,7 @@ export default function CoordinatorDashboardPage() {
                         </Select>
                     </div>
 
-                    <div className="w-[140px] space-y-1.5">
+                    <div className="w-full space-y-1.5">
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Status</Label>
                         <Select value={statusFilter} onValueChange={setStatusFilter}>
                             <SelectTrigger className="h-9">
@@ -472,15 +472,15 @@ export default function CoordinatorDashboardPage() {
                     {filteredNeeds.map((need) => (
                         <div
                             key={need.id}
-                            className="group flex cursor-pointer items-center justify-between rounded-xl border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-sm"
+                            className="group flex flex-col sm:flex-row cursor-pointer sm:items-center justify-between rounded-xl border bg-card p-4 transition-all hover:border-primary/50 hover:shadow-sm gap-4"
                             onClick={() => setSelectedNeed(need)}
                         >
-                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                                <div className={`flex size-10 shrink-0 items-center justify-center rounded-lg border ${URGENCY_COLORS[need.urgency] || URGENCY_COLORS.medium}`}>
-                                    <AlertTriangle className="size-5" />
+                            <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                                <div className={`flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-lg border ${URGENCY_COLORS[need.urgency] || URGENCY_COLORS.medium}`}>
+                                    <AlertTriangle className="size-4 sm:size-5" />
                                 </div>
                                 <div className="space-y-1 flex-1 min-w-0">
-                                    <h3 className="text-sm font-bold leading-none truncate group-hover:text-primary transition-colors">
+                                    <h3 className="text-[13px] sm:text-sm font-bold leading-tight truncate group-hover:text-primary transition-colors">
                                         {need.title}
                                     </h3>
                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
@@ -496,16 +496,16 @@ export default function CoordinatorDashboardPage() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-4 ml-4">
-                                <div className="hidden sm:flex items-center gap-2">
-                                    <Badge variant="outline" className="text-[10px] h-5 px-1.5 uppercase tracking-wide">
+                            <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-0 border-border/50">
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-[9px] sm:text-[10px] h-4 sm:h-5 px-1 sm:px-1.5 uppercase tracking-wide">
                                         {need.category}
                                     </Badge>
-                                    <Badge className={`text-[10px] h-5 px-1.5 uppercase tracking-wide border-0 ${STATUS_COLORS[need.status] || STATUS_COLORS.open}`}>
+                                    <Badge className={`text-[9px] sm:text-[10px] h-4 sm:h-5 px-1 sm:px-1.5 uppercase tracking-wide border-0 ${STATUS_COLORS[need.status] || STATUS_COLORS.open}`}>
                                         {need.status}
                                     </Badge>
                                 </div>
-                                <ChevronRight className="size-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
+                                <ChevronRight className="size-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform shrink-0" />
                             </div>
                         </div>
                     ))}
@@ -514,7 +514,7 @@ export default function CoordinatorDashboardPage() {
 
             {/* Detail Panel */}
             <Sheet open={!!selectedNeed} onOpenChange={(open) => !open && setSelectedNeed(null)}>
-                <SheetContent className="sm:max-w-md md:max-w-lg overflow-y-auto p-6">
+                <SheetContent className="!w-full !max-w-full !h-full sm:!h-auto sm:!max-w-md md:!max-w-lg overflow-y-auto p-6 border-none sm:border rounded-none sm:rounded-l-xl">
                     {selectedNeed && (
                         <div className="h-full flex flex-col">
                             <SheetHeader className="space-y-1 pr-6">
@@ -720,7 +720,7 @@ export default function CoordinatorDashboardPage() {
 
             {/* Impact Report Sheet */}
             <Sheet open={showReportSheet} onOpenChange={setShowReportSheet}>
-                <SheetContent className="sm:max-w-xl overflow-y-auto p-6">
+                <SheetContent className="!w-full !max-w-full !h-full sm:!h-auto sm:!max-w-xl overflow-y-auto p-6 border-none sm:border rounded-none sm:rounded-l-xl">
                     <SheetHeader className="space-y-1">
                         <div className="flex items-center gap-2 text-primary mb-1">
                             <FileText className="size-5" />

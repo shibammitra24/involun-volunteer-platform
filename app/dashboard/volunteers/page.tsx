@@ -122,7 +122,7 @@ export default function VolunteersPage() {
                     <p className="text-xs text-muted-foreground">Try a different search term.</p>
                 </Card>
             ) : (
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredVolunteers.map((volunteer) => (
                         <Card key={volunteer.id} className="overflow-hidden">
                             <CardHeader className="pb-3 border-b bg-muted/20">

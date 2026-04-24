@@ -161,12 +161,12 @@ export default function SubmitNeedPage() {
                         Coordinators will now be able to match volunteers.
                     </p>
                 </div>
-                <div className="flex flex-col gap-3">
-                    <Button onClick={handleReset} size="lg" className="gap-2">
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Button onClick={handleReset} size="lg" className="gap-2 w-full sm:w-auto">
                         <FileText className="size-4" />
                         Submit Another Report
                     </Button>
-                    <Button variant="outline" onClick={() => window.location.href = "/dashboard/coordinator"}>
+                    <Button variant="outline" size="lg" onClick={() => window.location.href = "/dashboard/coordinator"} className="w-full sm:w-auto">
                         Go to Dashboard
                     </Button>
                 </div>
@@ -188,7 +188,7 @@ export default function SubmitNeedPage() {
                     </div>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-3">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <Card className="md:col-span-2">
                         <CardHeader>
                             <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Detailed Summary</CardTitle>

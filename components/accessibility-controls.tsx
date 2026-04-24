@@ -66,16 +66,16 @@ export function AccessibilityControls() {
                                     <span>Theme</span>
                                 </SidebarMenuButton>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" side="right" className="w-40">
+                            <DropdownMenuContent align="start" side="bottom" className="w-48">
                                 <DropdownMenuLabel>Appearance</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setTheme("light")} className="gap-2">
+                                <DropdownMenuItem onClick={() => setTheme("light")} className="gap-2 text-xs">
                                     <Sun className="size-4" /> Light
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setTheme("dark")} className="gap-2">
+                                <DropdownMenuItem onClick={() => setTheme("dark")} className="gap-2 text-xs">
                                     <Moon className="size-4" /> Dark
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setTheme("system")} className="gap-2">
+                                <DropdownMenuItem onClick={() => setTheme("system")} className="gap-2 text-xs">
                                     <Monitor className="size-4" /> System
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -91,16 +91,16 @@ export function AccessibilityControls() {
                                     <span>Accessibility</span>
                                 </SidebarMenuButton>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" side="right" className="w-56 p-2 space-y-3">
+                            <DropdownMenuContent align="start" side="bottom" className="w-56 p-2 space-y-3">
                                 <DropdownMenuLabel>Accessibility Features</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between px-2">
-                                        <span className="text-xs font-medium flex items-center gap-1.5">
-                                            <Type className="size-3.5" /> Font Size
+                                        <span className="text-[11px] font-medium flex items-center gap-1.5 uppercase tracking-wider text-muted-foreground">
+                                            <Type className="size-3" /> Font Size
                                         </span>
-                                        <span className="text-[10px] text-muted-foreground">{Math.round(fontSize * 100)}%</span>
+                                        <span className="text-[10px] font-mono text-muted-foreground">{Math.round(fontSize * 100)}%</span>
                                     </div>
                                     <div className="flex gap-1 p-1">
                                         <Button 
@@ -132,10 +132,10 @@ export function AccessibilityControls() {
 
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between px-2">
-                                        <span className="text-xs font-medium flex items-center gap-1.5">
-                                            <AlignLeft className="size-3.5" /> Spacing
+                                        <span className="text-[11px] font-medium flex items-center gap-1.5 uppercase tracking-wider text-muted-foreground">
+                                            <AlignLeft className="size-3" /> Spacing
                                         </span>
-                                        <span className="text-[10px] text-muted-foreground">{spacing}px</span>
+                                        <span className="text-[10px] font-mono text-muted-foreground">{spacing}px</span>
                                     </div>
                                     <div className="flex gap-1 p-1">
                                         <Button 

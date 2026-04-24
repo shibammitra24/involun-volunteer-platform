@@ -234,7 +234,7 @@ export default function VolunteerRegistrationPage() {
                                 <Calendar className="size-3.5" />
                                 Availability
                             </Label>
-                            <div className="flex gap-6 rounded-lg border p-4">
+                            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 rounded-lg border p-4">
                                 {AVAILABILITY_OPTIONS.map((option) => (
                                     <div key={option} className="flex items-center space-x-2">
                                         <Checkbox
