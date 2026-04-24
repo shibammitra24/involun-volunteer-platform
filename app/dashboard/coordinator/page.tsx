@@ -550,7 +550,7 @@ export default function CoordinatorDashboardPage() {
                                     </p>
                                     <div className="pt-2">
                                         <Badge variant="secondary" className="text-xs">
-                                            Category: {selectedNeed.selected_category || selectedNeed.category}
+                                            Category: {selectedNeed.category}
                                         </Badge>
                                     </div>
                                 </div>
