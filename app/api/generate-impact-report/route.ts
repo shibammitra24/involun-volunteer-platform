@@ -11,13 +11,26 @@ export async function POST(req: NextRequest) {
         }
 
         // 1. Fetch completed assignments
-        const assignmentsSnapshot = await db.collection("assignments")
-            .where("status", "==", "completed")
-            .orderBy("created_at", "desc")
-            .limit(20)
-            .get();
+        let docs;
+        try {
+            const assignmentsSnapshot = await db.collection("assignments")
+                .where("status", "==", "completed")
+                .orderBy("created_at", "desc")
+                .limit(20)
+                .get();
+            docs = assignmentsSnapshot.docs;
+        } catch (indexError) {
+            console.warn("Impact Report: Index not ready, falling back to in-memory filter...");
+            // Fallback: Fetch completed assignments and sort manually in JS
+            const snapshot = await db.collection("assignments")
+                .where("status", "==", "completed")
+                .get();
+            docs = snapshot.docs
+                .sort((a, b) => (b.data().created_at || "").localeCompare(a.data().created_at || ""))
+                .slice(0, 20);
+        }
 
-        if (assignmentsSnapshot.empty) {
+        if (docs.length === 0) {
             return NextResponse.json({ 
                 report: "No completed assignments found to generate a report from. Assign volunteers and mark tasks as 'completed' first.",
                 empty: true
@@ -25,7 +38,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Fetch related needs and volunteers to format data for AI
-        const assignments = assignmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        const assignments = docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
         
         // Use Sets to collect unique IDs
         const needIds = [...new Set(assignments.map(a => a.need_id))];
@@ -61,7 +74,12 @@ export async function POST(req: NextRequest) {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel(
-            { model: "gemini-2.5-flash" },
+            { 
+                model: "gemini-2.5-flash",
+                thinkingConfig: {
+                    thinkingBudget: 0
+                }
+            } as any,
             { apiVersion: "v1beta" }
         );
 

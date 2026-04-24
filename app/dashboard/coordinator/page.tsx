@@ -62,6 +62,7 @@ interface Need {
     category: string;
     location: string;
     status: "open" | "assigned" | "completed";
+    submitter_name?: string;
     created_at: string;
 }
 
@@ -468,6 +469,12 @@ export default function CoordinatorDashboardPage() {
                                             <Calendar className="size-3" />
                                             {new Date(need.created_at).toLocaleDateString()}
                                         </div>
+                                        {need.submitter_name && (
+                                            <div className="flex items-center gap-1">
+                                                <Users className="size-3" />
+                                                <span>{need.submitter_name}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -511,6 +518,13 @@ export default function CoordinatorDashboardPage() {
                                     <Separator orientation="vertical" className="h-3 mx-1" />
                                     <Calendar className="size-3" />
                                     Submitted on {new Date(selectedNeed.created_at).toLocaleString()}
+                                    {selectedNeed.submitter_name && (
+                                        <>
+                                            <Separator orientation="vertical" className="h-3 mx-1" />
+                                            <Users className="size-3" />
+                                            By {selectedNeed.submitter_name}
+                                        </>
+                                    )}
                                 </SheetDescription>
                             </SheetHeader>
 

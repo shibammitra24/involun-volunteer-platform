@@ -127,6 +127,7 @@ export default function SubmitNeedPage() {
                     urgency: editedUrgency,
                     category: editedCategory,
                     location: location,
+                    submitter_name: submitterName,
                 }),
             });
             const data = await res.json();

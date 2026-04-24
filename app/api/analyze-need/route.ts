@@ -30,8 +30,11 @@ export async function POST(req: NextRequest) {
                 model: "gemini-2.5-flash",
                 generationConfig: {
                     responseMimeType: "application/json",
+                },
+                thinkingConfig: {
+                    thinkingBudget: 0
                 }
-            },
+            } as any,
             { apiVersion: "v1beta" }
         );
 
