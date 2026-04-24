@@ -47,6 +47,12 @@ const NAV_ITEMS = [
         icon: LayoutDashboard,
         protected: true,
     },
+    {
+        title: "Volunteers",
+        href: "/dashboard/volunteers",
+        icon: Users,
+        protected: true,
+    },
 ];
 
 export function AppSidebar() {

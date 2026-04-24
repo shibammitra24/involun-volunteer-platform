@@ -1,22 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import Groq from "groq-sdk";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 
-const MATCH_PROMPT = `You are an NGO coordinator. Given a specific community need and a list of available volunteers, find the top 3 best-fit volunteers.
+const MATCH_SYSTEM_PROMPT = `You are an NGO coordinator. Given a community need and a list of available volunteers, find the top 3 best-fit volunteers.
 
 Consider:
 1. Skills vs Need Category (e.g. Medical skills for Medical need).
 2. Location proximity (if mentioned).
 3. Availability.
 
-Return ONLY a JSON array of top 3 matches (or fewer if not enough volunteers), each with:
-- volunteer_id: (UUID from the list)
-- volunteer_name: (Name from the list)
-- match_score: (1-10, where 10 is perfect)
-- reason: (one concise sentence explaining why they are a good fit)
-
-Need:
-`;
+Return ONLY a valid JSON object (no markdown fences) in this shape:
+{ "matches": [ { "volunteer_id": "...", "volunteer_name": "...", "match_score": 8, "reason": "..." } ] }
+Include up to 3 matches, or fewer if the list is short. The match_score is 1-10, 10 being perfect.`;
 
 interface MatchResult {
     volunteer_id: string;
@@ -52,39 +47,44 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. AI Matching
-        const apiKey = process.env.GEMINI_API_KEY;
+        const apiKey = process.env.GROQ_API_KEY;
         if (!apiKey) {
-            return NextResponse.json({ error: "GEMINI_API_KEY missing" }, { status: 500 });
+            return NextResponse.json({ error: "GROQ_API_KEY missing" }, { status: 500 });
         }
 
+        const needInfo = `Title: ${title}
+Summary: ${summary}
+Urgency: ${urgency}
+Category: ${category}
+Location: ${location || "Unknown"}`;
 
-        const needInfo = `
-            Title: ${title}
-            Summary: ${summary}
-            Urgency: ${urgency}
-            Category: ${category}
-            Location: ${location || "Unknown"}
-        `;
+        const volunteersList = volunteers
+            .map(
+                (v) =>
+                    `ID: ${v.id}, Name: ${v.name}, Skills: ${v.skills.join(", ")}, Availability: ${v.availability}, Location: ${v.location || "Unknown"}`,
+            )
+            .join("\n");
 
-        const volunteersList = volunteers.map(v => 
-            `ID: ${v.id}, Name: ${v.name}, Skills: ${v.skills.join(", ")}, Availability: ${v.availability}, Location: ${v.location || "Unknown"}`
-        ).join("\n");
-
-        const prompt = `${MATCH_PROMPT}${needInfo}\n\nAvailable Volunteers:\n${volunteersList}`;
-
-        const genAI = new GoogleGenAI({ apiKey });
+        const groq = new Groq({ apiKey });
 
         try {
-            const result = await genAI.models.generateContent({
-                model: "gemini-2.0-flash",
-                contents: prompt,
+            const chatCompletion = await groq.chat.completions.create({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: MATCH_SYSTEM_PROMPT },
+                    {
+                        role: "user",
+                        content: `Need:\n${needInfo}\n\nAvailable Volunteers:\n${volunteersList}`,
+                    },
+                ],
+                response_format: { type: "json_object" },
+                temperature: 0.3,
             });
-            const text = result.text ?? "";
+            const text = chatCompletion.choices[0]?.message?.content ?? "";
 
-            const jsonMatch = text.match(/\[[\s\S]*\]/);
-            if (!jsonMatch) throw new Error("Failed to parse AI response");
-
-            const matches: MatchResult[] = JSON.parse(jsonMatch[0]);
+            const parsed = JSON.parse(text);
+            // Support both { matches: [...] } and a bare array
+            const matches: MatchResult[] = Array.isArray(parsed) ? parsed : parsed.matches ?? [];
 
             return NextResponse.json({
                 success: true,

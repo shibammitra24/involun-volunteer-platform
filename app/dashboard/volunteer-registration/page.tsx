@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 
 const SKILLS = [
     "Medical",
@@ -84,6 +85,9 @@ export default function VolunteerRegistrationPage() {
             }
 
             setIsSuccess(true);
+            toast.success("Registration complete!", {
+                description: "Welcome to the team!",
+            });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Unknown error";
             setError(message);

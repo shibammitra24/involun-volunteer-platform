@@ -15,13 +15,20 @@ import {
     ChevronRight,
     Loader2,
     Users,
+    FileText,
+    Copy,
+    Check,
+    Eye,
+    CheckCircle2,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import {
     Card,
     CardContent,
@@ -87,7 +94,125 @@ export default function CoordinatorDashboardPage() {
     // Selection for side panel
     const [selectedNeed, setSelectedNeed] = useState<Need | null>(null);
     const [isMatching, setIsMatching] = useState(false);
+    const [isAssigning, setIsAssigning] = useState<string | null>(null); // volunteer_id being assigned
     const [matchingResults, setMatchingResults] = useState<any[] | null>(null);
+    const [currentAssignments, setCurrentAssignments] = useState<any[] | null>(null);
+
+    useEffect(() => {
+        const fetchAssignments = async () => {
+            if (!selectedNeed || selectedNeed.status === "open") {
+                setCurrentAssignments(null);
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from("assignments")
+                    .select("*, volunteers(*)")
+                    .eq("need_id", selectedNeed.id);
+                
+                if (error) throw error;
+                setCurrentAssignments(data);
+            } catch (err) {
+                console.error("Fetch Assignments Error:", err);
+            }
+        };
+
+        fetchAssignments();
+    }, [selectedNeed]);
+
+    // Impact Report states
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+    const [reportContent, setReportContent] = useState<string | null>(null);
+    const [showReportSheet, setShowReportSheet] = useState(false);
+    const [hasCopied, setHasCopied] = useState(false);
+
+    const [isCompleting, setIsCompleting] = useState(false);
+
+    const handleComplete = async () => {
+        if (!selectedNeed) return;
+        setIsCompleting(true);
+        try {
+            const res = await fetch("/api/complete-need", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ need_id: selectedNeed.id }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Completion failed");
+            
+            toast.success("Need resolved!", {
+                description: "Volunteers have been freed for new tasks.",
+            });
+            
+            // Local update for immediate feedback
+            setNeeds(prev => prev.map(n => 
+                n.id === selectedNeed.id ? { ...n, status: "completed" } : n
+            ));
+            setSelectedNeed(prev => prev ? { ...prev, status: "completed" } : null);
+        } catch (err: unknown) {
+            console.error("Complete Error:", err);
+            toast.error("Failed to mark as complete.");
+        } finally {
+            setIsCompleting(false);
+        }
+    };
+
+    const handleGenerateReport = async () => {
+        setIsGeneratingReport(true);
+        try {
+            const res = await fetch("/api/generate-impact-report", { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Generation failed");
+            setReportContent(data.report);
+            setShowReportSheet(true);
+            toast.success("Impact report generated!");
+        } catch (err: unknown) {
+            console.error("Report Error:", err);
+            toast.error("Failed to generate impact report.");
+        } finally {
+            setIsGeneratingReport(false);
+        }
+    };
+
+    const copyToClipboard = () => {
+        if (!reportContent) return;
+        navigator.clipboard.writeText(reportContent);
+        setHasCopied(true);
+        setTimeout(() => setHasCopied(false), 2000);
+    };
+
+    const handleAssign = async (volunteerId: string, reason: string) => {
+        if (!selectedNeed) return;
+        setIsAssigning(volunteerId);
+
+        try {
+            const res = await fetch("/api/assign-volunteer", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    need_id: selectedNeed.id,
+                    volunteer_id: volunteerId,
+                    reason,
+                }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Assignment failed");
+
+            toast.success("Volunteer assigned successfully!");
+            // Update local state for immediate feedback (though real-time will handle it too)
+            setNeeds(prev => prev.map(n => 
+                n.id === selectedNeed.id ? { ...n, status: "assigned" } : n
+            ));
+            setSelectedNeed(prev => prev ? { ...prev, status: "assigned" } : null);
+            setMatchingResults(null);
+        } catch (err: unknown) {
+            console.error("Assignment Error:", err);
+        } finally {
+            setIsAssigning(null);
+        }
+    };
 
     const handleFindMatches = async () => {
         if (!selectedNeed) return;
@@ -111,9 +236,12 @@ export default function CoordinatorDashboardPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Matching failed");
             setMatchingResults(data.matches);
+            toast.success("AI Matching complete!", {
+                description: `Found ${data.matches.length} suitable volunteers.`,
+            });
         } catch (err: unknown) {
             console.error("Matching Error:", err);
-            // We could show a toast here
+            toast.error("Matching failed. Please try again.");
         } finally {
             setIsMatching(false);
         }
@@ -145,6 +273,36 @@ export default function CoordinatorDashboardPage() {
 
         if (user?.role === "coordinator") {
             fetchNeeds();
+
+            // Real-time subscription
+            const channel = supabase
+                .channel("needs_changes")
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "*",
+                        schema: "public",
+                        table: "needs",
+                    },
+                    (payload) => {
+                        if (payload.eventType === "INSERT") {
+                            setNeeds((prev) => [payload.new as Need, ...prev]);
+                        } else if (payload.eventType === "UPDATE") {
+                            setNeeds((prev) =>
+                                prev.map((n) =>
+                                    n.id === payload.new.id ? (payload.new as Need) : n
+                                )
+                            );
+                        } else if (payload.eventType === "DELETE") {
+                            setNeeds((prev) => prev.filter((n) => n.id !== payload.old.id));
+                        }
+                    }
+                )
+                .subscribe();
+
+            return () => {
+                supabase.removeChannel(channel);
+            };
         }
     }, [user]);
 
@@ -184,7 +342,7 @@ export default function CoordinatorDashboardPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                     <div className="flex items-center gap-2">
                         <LayoutDashboard className="size-5 text-primary" />
@@ -196,22 +354,37 @@ export default function CoordinatorDashboardPage() {
                         Manage submitted needs and oversee volunteer assignments.
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={() => window.location.reload()}
+                        className="h-8"
                     >
                         <Clock className="mr-2 size-3.5" />
                         Refresh
+                    </Button>
+                    <Button
+                        size="sm"
+                        className="gap-2 h-8"
+                        onClick={handleGenerateReport}
+                        disabled={isGeneratingReport}
+                    >
+                        {isGeneratingReport ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                            <FileText className="size-3.5" />
+                        )}
+                        <span className="hidden sm:inline">Generate Weekly Report</span>
+                        <span className="sm:hidden text-[10px]">Impact Report</span>
                     </Button>
                 </div>
             </div>
 
             {/* Filters Bar */}
             <Card className="bg-muted/30">
-                <CardContent className="flex flex-wrap items-end gap-3 p-4">
-                    <div className="flex-1 min-w-[200px] space-y-1.5">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-end gap-3 p-4">
+                    <div className="space-y-1.5">
                         <Label htmlFor="search" className="text-[10px] uppercase tracking-wider text-muted-foreground">Search</Label>
                         <div className="relative">
                             <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
@@ -310,12 +483,12 @@ export default function CoordinatorDashboardPage() {
                                     <h3 className="text-sm font-bold leading-none truncate group-hover:text-primary transition-colors">
                                         {need.title}
                                     </h3>
-                                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                                         <div className="flex items-center gap-1">
                                             <MapPin className="size-3" />
-                                            <span className="truncate">{need.location || "Unknown"}</span>
+                                            <span className="truncate max-w-[100px] sm:max-w-none">{need.location || "Unknown"}</span>
                                         </div>
-                                        <div className="flex items-center gap-1">
+                                        <div className="hidden sm:flex items-center gap-1">
                                             <Calendar className="size-3" />
                                             {new Date(need.created_at).toLocaleDateString()}
                                         </div>
@@ -447,8 +620,17 @@ export default function CoordinatorDashboardPage() {
                                                                 >
                                                                     {match.match_score}/10 Match
                                                                 </Badge>
-                                                                <Button size="sm" className="h-7 text-[10px] px-2">
-                                                                    Assign
+                                                                <Button 
+                                                                    size="sm" 
+                                                                    className="h-7 text-[10px] px-2"
+                                                                    onClick={() => handleAssign(match.volunteer_id, match.reason)}
+                                                                    disabled={isAssigning !== null || selectedNeed.status !== "open"}
+                                                                >
+                                                                    {isAssigning === match.volunteer_id ? (
+                                                                        <Loader2 className="size-3 animate-spin" />
+                                                                    ) : (
+                                                                        "Assign"
+                                                                    )}
                                                                 </Button>
                                                             </div>
                                                         </div>
@@ -466,15 +648,114 @@ export default function CoordinatorDashboardPage() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Current Assignments Section */}
+                                {selectedNeed.status !== "open" && currentAssignments && (
+                                    <div className="space-y-3 pt-4 border-t">
+                                        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                            Current Assignment
+                                        </h4>
+                                        <div className="space-y-3">
+                                            {currentAssignments.length === 0 ? (
+                                                <p className="text-xs text-muted-foreground italic">No assignment records found.</p>
+                                            ) : (
+                                                currentAssignments.map((assignment) => (
+                                                    <div key={assignment.id} className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-4 space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="flex size-8 items-center justify-center rounded-full bg-purple-500/10 text-purple-600 text-[10px] font-bold">
+                                                                    {assignment.volunteers?.name?.[0]}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm font-bold">{assignment.volunteers?.name}</p>
+                                                                    <p className="text-[10px] text-muted-foreground">{assignment.volunteers?.email}</p>
+                                                                </div>
+                                                            </div>
+                                                            <Badge className="text-[10px] h-5 px-1.5 uppercase border-0 bg-purple-500/10 text-purple-600">
+                                                                {assignment.status}
+                                                            </Badge>
+                                                        </div>
+                                                        {assignment.ai_reason && (
+                                                            <p className="text-xs text-muted-foreground italic leading-relaxed">
+                                                                &ldquo;{assignment.ai_reason}&rdquo;
+                                                            </p>
+                                                        )}
+                                                        <div className="flex items-center gap-2 pt-2">
+                                                            <Button variant="outline" size="sm" className="h-7 text-[10px] w-full gap-1" onClick={() => router.push("/dashboard/volunteers")}>
+                                                                <Eye className="size-3" />
+                                                                View Volunteer Profile
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
-                            <div className="pt-6 border-t mt-auto">
-                                <Button className="w-full" onClick={() => setSelectedNeed(null)}>
+                            <div className="pt-6 border-t mt-auto space-y-3">
+                                {selectedNeed.status === "assigned" && (
+                                    <Button 
+                                        className="w-full bg-green-600 hover:bg-green-700 text-white gap-2" 
+                                        onClick={handleComplete}
+                                        disabled={isCompleting}
+                                    >
+                                        {isCompleting ? (
+                                            <Loader2 className="size-4 animate-spin" />
+                                        ) : (
+                                            <CheckCircle2 className="size-4" />
+                                        )}
+                                        Mark as Resolved (Completed)
+                                    </Button>
+                                )}
+                                <Button className="w-full" variant="outline" onClick={() => setSelectedNeed(null)}>
                                     Close Details
                                 </Button>
                             </div>
                         </div>
                     )}
+                </SheetContent>
+            </Sheet>
+
+            {/* Impact Report Sheet */}
+            <Sheet open={showReportSheet} onOpenChange={setShowReportSheet}>
+                <SheetContent className="sm:max-w-xl overflow-y-auto">
+                    <SheetHeader className="space-y-1">
+                        <div className="flex items-center gap-2 text-primary mb-1">
+                            <FileText className="size-5" />
+                            <h4 className="text-xs font-bold uppercase tracking-wider">AI Impact Generator</h4>
+                        </div>
+                        <SheetTitle className="text-2xl font-bold">Donor Impact Report</SheetTitle>
+                        <SheetDescription>
+                            A 3-paragraph summary of recent resolved assignments for your donors.
+                        </SheetDescription>
+                    </SheetHeader>
+
+                    <div className="mt-8 relative">
+                        <div className="rounded-2xl border bg-muted/30 p-6 text-sm leading-relaxed whitespace-pre-wrap font-serif italic text-foreground/90">
+                            {reportContent}
+                        </div>
+                        
+                        <div className="mt-6 flex gap-3">
+                            <Button className="flex-1 gap-2" onClick={copyToClipboard}>
+                                {hasCopied ? (
+                                    <>
+                                        <Check className="size-4" />
+                                        Copied!
+                                    </>
+                                ) : (
+                                    <>
+                                        <Copy className="size-4" />
+                                        Copy Report Text
+                                    </>
+                                )}
+                            </Button>
+                            <Button variant="outline" onClick={() => setShowReportSheet(false)}>
+                                Close
+                            </Button>
+                        </div>
+                    </div>
                 </SheetContent>
             </Sheet>
         </div>

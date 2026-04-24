@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, LogIn } from "lucide-react";
 
@@ -39,8 +39,16 @@ const ROLES: { value: Role; label: string; description: string }[] = [
 
 export default function LoginPage() {
     const [selectedRole, setSelectedRole] = useState<Role | "">("");
-    const { login } = useAuth();
+    const { user, isLoading, login } = useAuth();
     const router = useRouter();
+
+    useEffect(() => {
+        if (!isLoading && user) {
+            router.replace("/dashboard");
+        }
+    }, [user, isLoading, router]);
+
+    if (isLoading) return null;
 
     const handleLogin = () => {
         if (!selectedRole) return;

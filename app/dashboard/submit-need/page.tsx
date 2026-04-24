@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 interface AiResult {
     title: string;
@@ -91,6 +92,7 @@ export default function SubmitNeedPage() {
             }
 
             setResult(data as SubmitResponse);
+            toast.success("Need analyzed and submitted!");
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Unknown error";
             setError(message);

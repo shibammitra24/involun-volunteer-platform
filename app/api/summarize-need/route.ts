@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import Groq from "groq-sdk";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 
-const GEMINI_PROMPT = `You are an NGO assistant. Given this raw field report, extract and return ONLY a JSON object with:
+const AI_SYSTEM_PROMPT = `You are an NGO assistant. Given a raw field report, extract and return ONLY a valid JSON object (no markdown fences, no extra text) with these fields:
 - title: (5 word summary)
 - summary: (2 sentence clean description)
 - urgency: (High / Medium / Low)
 - category: (Medical / Food / Education / Infrastructure / Other)
-- suggested_volunteers_needed: (number)
+- suggested_volunteers_needed: (number)`;
 
-Raw report:`;
-
-interface GeminiResult {
+interface AIResult {
     title: string;
     summary: string;
     urgency: "High" | "Medium" | "Low";
@@ -41,8 +39,8 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // ---- Gemini ------------------------------------------------
-        const apiKey = process.env.GEMINI_API_KEY;
+        // ---- Groq ------------------------------------------------
+        const apiKey = process.env.GROQ_API_KEY;
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -58,19 +56,23 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const genAI = new GoogleGenAI({ apiKey });
+        const groq = new Groq({ apiKey });
 
-        let aiResult: GeminiResult;
+        let aiResult: AIResult;
 
         try {
-            const prompt = `${GEMINI_PROMPT}\n\n${raw_description}`;
-            const result = await genAI.models.generateContent({
-                model: "gemini-2.0-flash",
-                contents: prompt,
+            const chatCompletion = await groq.chat.completions.create({
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: AI_SYSTEM_PROMPT },
+                    { role: "user", content: `Raw report:\n\n${raw_description}` },
+                ],
+                response_format: { type: "json_object" },
+                temperature: 0.3,
             });
-            const text = result.text ?? "";
+            const text = chatCompletion.choices[0]?.message?.content ?? "";
 
-            // Extract JSON from the response (handle markdown fences)
+            // Extract JSON from the response (handle markdown fences just in case)
             const jsonMatch = text.match(/\{[\s\S]*\}/);
             if (!jsonMatch) {
                 throw new Error("Failed to parse AI response");
@@ -81,7 +83,7 @@ export async function POST(req: NextRequest) {
             // Fallback result so the database part still works
             aiResult = {
                 title: raw_description.slice(0, 30) + "...",
-                summary: "AI analysis unavailable (quota reached). Please review manually.",
+                summary: "AI analysis unavailable. Please review manually.",
                 urgency: "Medium",
                 category: "Other",
                 suggested_volunteers_needed: 2,
