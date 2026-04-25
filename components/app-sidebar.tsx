@@ -34,7 +34,7 @@ const NAV_ITEMS = [
         title: "Submit Need",
         href: "/dashboard/submit-need",
         icon: FileText,
-        protected: false,
+        roles: ["field_staff"],
     },
     {
         title: "Volunteer Registration",
@@ -59,7 +59,7 @@ const NAV_ITEMS = [
         title: "Volunteers",
         href: "/dashboard/volunteers",
         icon: Users,
-        roles: ["coordinator"],
+        roles: ["coordinator", "field_staff"],
     },
 ];
 

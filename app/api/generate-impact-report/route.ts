@@ -75,9 +75,14 @@ export async function POST(req: NextRequest) {
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel(
             { 
-                model: "gemini-1.5-flash"
-            } as any,
-            { apiVersion: "v1beta" }
+                model: "gemini-2.5-flash",
+                generationConfig: {
+                    responseMimeType: "application/json",
+                },
+                thinkingConfig: {
+                    thinkingBudget: 0
+                }
+            } as any
         );
 
         const systemPrompt = `You are an expert NGO communications specialist. Your goal is to write compelling donor impact reports that highlight the human impact and efficiency of volunteer assignments.`;

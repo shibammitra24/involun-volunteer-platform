@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
+import dynamic from "next/dynamic";
 import { 
     LayoutDashboard, 
     ClipboardList, 
@@ -17,8 +18,14 @@ import {
     ChevronRight,
     Star,
     ShieldAlert,
-    FileText
+    FileText,
+    Map as MapIcon
 } from "lucide-react";
+
+const MapView = dynamic(() => import("@/components/map-view"), { 
+    ssr: false,
+    loading: () => <div className="h-[200px] w-full bg-muted animate-pulse rounded-md flex items-center justify-center text-muted-foreground">Loading Map...</div>
+});
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
@@ -52,6 +59,8 @@ interface Need {
     urgency: "low" | "medium" | "high" | "critical";
     category: string;
     location: string;
+    latitude?: number;
+    longitude?: number;
     status: "open" | "assigned" | "completed";
     created_at: string;
 }
@@ -200,9 +209,9 @@ export default function VolunteerDashboardPage() {
 
     const filteredNeeds = useMemo(() => {
         return openNeeds.filter(n => 
-            n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            n.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            n.category.toLowerCase().includes(searchQuery.toLowerCase())
+            (n.title?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+            (n.location?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+            (n.category?.toLowerCase() || "").includes(searchQuery.toLowerCase())
         );
     }, [openNeeds, searchQuery]);
 
@@ -428,7 +437,7 @@ export default function VolunteerDashboardPage() {
 
                 {/* Resource Content Sheet */}
                 <Sheet open={!!selectedResource} onOpenChange={(open) => !open && setSelectedResource(null)}>
-                    <SheetContent className="sm:max-w-md px-8">
+                    <SheetContent className="sm:max-w-md px-8 overflow-y-auto">
                         {selectedResource && (
                             <div className="space-y-6 pt-6">
                                 <SheetHeader>
@@ -521,7 +530,7 @@ export default function VolunteerDashboardPage() {
 
             {/* Need Details Sheet */}
             <Sheet open={!!selectedNeed} onOpenChange={(open) => !open && setSelectedNeed(null)}>
-                <SheetContent className="sm:max-w-md px-8">
+                <SheetContent className="sm:max-w-md px-8 overflow-y-auto">
                     {selectedNeed && (
                         <div className="space-y-6 pt-4">
                             <SheetHeader>
@@ -552,7 +561,33 @@ export default function VolunteerDashboardPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</h4>
+                                 {/* Map Section */}
+                                 {selectedNeed.latitude && selectedNeed.longitude && (
+                                     <div className="space-y-2">
+                                         <div className="flex items-center justify-between">
+                                             <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                                 <MapIcon className="size-3.5" />
+                                                 Exact Location
+                                             </h4>
+                                             <Button 
+                                                 variant="ghost" 
+                                                 size="sm" 
+                                                 className="h-7 text-[10px] gap-1 text-primary"
+                                                 onClick={() => window.open(`https://www.google.com/maps?q=${selectedNeed.latitude},${selectedNeed.longitude}`, '_blank')}
+                                             >
+                                                 <ExternalLink className="size-3" />
+                                                 Open in Maps
+                                             </Button>
+                                         </div>
+                                         <MapView 
+                                             lat={selectedNeed.latitude} 
+                                             lng={selectedNeed.longitude} 
+                                             title={selectedNeed.title} 
+                                         />
+                                     </div>
+                                 )}
+
+                                     <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</h4>
                                     <div className="flex items-center gap-2">
                                         <div className={`size-2 rounded-full ${selectedNeed.status === 'open' ? 'bg-blue-500 animate-pulse' : 'bg-purple-500'}`} />
                                         <span className="text-xs font-medium capitalize">{selectedNeed.status}</span>

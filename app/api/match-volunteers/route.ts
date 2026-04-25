@@ -65,12 +65,14 @@ Location: ${location || "Unknown"}`;
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel(
             { 
-                model: "gemini-1.5-flash",
+                model: "gemini-2.5-flash",
                 generationConfig: {
                     responseMimeType: "application/json",
+                },
+                thinkingConfig: {
+                    thinkingBudget: 0
                 }
-            } as any,
-            { apiVersion: "v1beta" }
+            } as any
         );
 
         try {

@@ -15,7 +15,7 @@ function mapUrgency(u: string): "low" | "medium" | "high" {
 
 export async function POST(req: NextRequest) {
     try {
-        const { title, raw_description, ai_summary, urgency, category, location, submitter_name } = await req.json();
+        const { title, raw_description, ai_summary, urgency, category, location, submitter_name, latitude, longitude } = await req.json();
 
         if (!title || !raw_description) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -28,6 +28,8 @@ export async function POST(req: NextRequest) {
             urgency: mapUrgency(urgency),
             category,
             location: location || null,
+            latitude: latitude || null,
+            longitude: longitude || null,
             submitter_name: submitter_name || "Field Staff",
             status: "open",
             created_at: new Date().toISOString(),

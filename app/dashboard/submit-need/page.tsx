@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import {
     FileText,
     Send,
@@ -13,7 +15,9 @@ import {
     Users,
     Sparkles,
     ChevronLeft,
-    Check
+    Check,
+    Map as MapIcon,
+    ExternalLink
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,6 +42,13 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useLanguage } from "@/lib/language-context";
+import { useAuth } from "@/lib/auth-context";
+
+// Dynamic import for MapPicker to avoid SSR issues with Leaflet
+const MapPicker = dynamic(() => import("@/components/map-picker"), { 
+    ssr: false,
+    loading: () => <div className="h-[300px] w-full bg-muted animate-pulse rounded-md flex items-center justify-center text-muted-foreground">Loading Map...</div>
+});
 
 interface AiResult {
     title: string;
@@ -50,20 +61,21 @@ interface AiResult {
 const CATEGORIES = ["Medical", "Food", "Education", "Infrastructure", "Other"];
 const URGENCY_LEVELS = ["Low", "Medium", "High", "Critical"];
 
-const URGENCY_COLORS: Record<string, string> = {
-    high: "bg-red-500/10 text-red-600 border-red-500/20",
-    critical: "bg-red-600 text-white border-red-700",
-    medium: "bg-amber-500/10 text-amber-600 border-amber-500/20",
-    low: "bg-green-500/10 text-green-600 border-green-500/20",
-};
-
 export default function SubmitNeedPage() {
     const { t } = useLanguage();
+    const { user, isLoading: authLoading } = useAuth();
+    const router = useRouter();
 
     // Stage 1: Input
-    const [location, setLocation] = useState("");
+    const [locationName, setLocationName] = useState("");
+    const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
     const [rawDescription, setRawDescription] = useState("");
     const [submitterName, setSubmitterName] = useState("");
+    
+    // Location Search States
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [mapCenter, setMapCenter] = useState<[number, number] | undefined>(undefined);
     
     // Stage 2: Review/Edit
     const [step, setStep] = useState<"input" | "review" | "success">("input");
@@ -79,7 +91,53 @@ export default function SubmitNeedPage() {
     // Final Result
     const [finalNeedId, setFinalNeedId] = useState<string | null>(null);
 
-    const canAnalyze = rawDescription.trim().length > 10 && !isAnalyzing;
+    // Auto-fill submitter name and handle redirect
+    useEffect(() => {
+        if (!authLoading) {
+            if (!user || user.role !== "field_staff") {
+                toast.error("Access denied. Only Field Staff can submit needs.");
+                router.push("/dashboard");
+                return;
+            }
+            if (user.name) {
+                setSubmitterName(user.name);
+            }
+        }
+    }, [user, authLoading, router]);
+
+    // Location search logic
+    useEffect(() => {
+        const fetchSuggestions = async () => {
+            if (locationName.length < 3) {
+                setSuggestions([]);
+                return;
+            }
+            setIsSearching(true);
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationName)}&limit=5&addressdetails=1`);
+                const data = await res.json();
+                setSuggestions(data);
+            } catch (err) {
+                console.error("Location search failed", err);
+            } finally {
+                setIsSearching(false);
+            }
+        };
+
+        const timer = setTimeout(fetchSuggestions, 500);
+        return () => clearTimeout(timer);
+    }, [locationName]);
+
+    const handleSelectSuggestion = (suggestion: any) => {
+        const lat = parseFloat(suggestion.lat);
+        const lon = parseFloat(suggestion.lon);
+        setLocationName(suggestion.display_name);
+        setCoords({ lat, lng: lon });
+        setMapCenter([lat, lon]);
+        setSuggestions([]);
+    };
+
+    const canAnalyze = rawDescription.trim().length > 10 && !isAnalyzing && coords !== null;
 
     const handleAnalyze = async () => {
         if (!canAnalyze) return;
@@ -103,7 +161,6 @@ export default function SubmitNeedPage() {
             toast.success("AI Analysis complete! Please review.");
         } catch (err: unknown) {
             toast.error("AI analysis failed. You can still fill it manually.");
-            // Fallback for manual entry
             setEditedTitle("New Community Need");
             setEditedSummary("");
             setEditedCategory("Other");
@@ -126,7 +183,9 @@ export default function SubmitNeedPage() {
                     ai_summary: editedSummary,
                     urgency: editedUrgency,
                     category: editedCategory,
-                    location: location,
+                    location: locationName,
+                    latitude: coords?.lat,
+                    longitude: coords?.lng,
                     submitter_name: submitterName,
                 }),
             });
@@ -144,12 +203,16 @@ export default function SubmitNeedPage() {
     };
 
     const handleReset = () => {
-        setLocation("");
+        setLocationName("");
+        setCoords(null);
         setRawDescription("");
-        setSubmitterName("");
         setStep("input");
         setFinalNeedId(null);
+        setMapCenter(undefined);
     };
+
+    if (authLoading) return <div className="flex items-center justify-center min-h-[400px]"><Loader2 className="animate-spin" /></div>;
+    if (!user || user.role !== "field_staff") return null;
 
     // ── Success State ──────────────────────────────────────────────
     if (step === "success") {
@@ -169,7 +232,7 @@ export default function SubmitNeedPage() {
                         <FileText className="size-4" />
                         {t("submit_need.btn_another")}
                     </Button>
-                    <Button variant="outline" size="lg" onClick={() => window.location.href = "/dashboard/coordinator"} className="w-full sm:w-auto">
+                    <Button variant="outline" size="lg" onClick={() => router.push("/dashboard")} className="w-full sm:w-auto">
                         {t("submit_need.btn_dashboard")}
                     </Button>
                 </div>
@@ -258,8 +321,13 @@ export default function SubmitNeedPage() {
                                 <Label className="text-[10px] uppercase text-muted-foreground">{t("submit_need.field_location")}</Label>
                                 <p className="text-sm font-medium flex items-center gap-1">
                                     <MapPin className="size-3.5" />
-                                    {location || "Unspecified"}
+                                    {locationName || "Unspecified"}
                                 </p>
+                                {coords && (
+                                    <p className="text-[10px] text-muted-foreground font-mono">
+                                        {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+                                    </p>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
@@ -285,8 +353,8 @@ export default function SubmitNeedPage() {
             </p>
 
             <Card>
-                <CardContent className="space-y-4 pt-6">
-                    <div className="grid gap-4 sm:grid-cols-2">
+                <CardContent className="space-y-6 pt-6">
+                    <div className="grid gap-6 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="submitter-name" className="flex items-center gap-1.5">
                                 <User className="size-3.5" />
@@ -294,25 +362,84 @@ export default function SubmitNeedPage() {
                             </Label>
                             <Input
                                 id="submitter-name"
-                                placeholder={t("registration.field_name")}
                                 value={submitterName}
-                                onChange={(e) => setSubmitterName(e.target.value)}
-                                disabled={isAnalyzing}
+                                disabled={true}
+                                className="bg-muted cursor-not-allowed"
                             />
+                            <p className="text-[10px] text-muted-foreground">{t("submit_need.verified_info")}</p>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-2 relative">
                             <Label htmlFor="location" className="flex items-center gap-1.5">
                                 <MapPin className="size-3.5" />
-                                {t("submit_need.field_location")}
+                                {t("submit_need.field_location")} (Search)
                             </Label>
                             <Input
                                 id="location"
-                                placeholder={t("submit_need.placeholder_location")}
-                                value={location}
-                                onChange={(e) => setLocation(e.target.value)}
+                                placeholder={t("submit_need.placeholder_search")}
+                                value={locationName}
+                                onChange={(e) => setLocationName(e.target.value)}
                                 disabled={isAnalyzing}
                             />
+                            {suggestions.length > 0 && (
+                                <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                    {suggestions.map((s, idx) => (
+                                        <button
+                                            key={idx}
+                                            className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors border-b last:border-0"
+                                            onClick={() => handleSelectSuggestion(s)}
+                                        >
+                                            {s.display_name}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {isSearching && (
+                                <div className="absolute right-3 top-9">
+                                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                                </div>
+                            )}
                         </div>
+                    </div>
+
+                    <div className="grid gap-6 sm:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-1.5">
+                                <MapIcon className="size-3.5" />
+                                {t("submit_need.field_latitude")}
+                            </Label>
+                            <Input
+                                value={coords?.lat || ""}
+                                disabled
+                                className="bg-muted font-mono text-xs"
+                                placeholder={t("submit_need.field_latitude")}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="flex items-center gap-1.5">
+                                <MapIcon className="size-3.5" />
+                                {t("submit_need.field_longitude")}
+                            </Label>
+                            <Input
+                                value={coords?.lng || ""}
+                                disabled
+                                className="bg-muted font-mono text-xs"
+                                placeholder={t("submit_need.field_longitude")}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="flex items-center gap-1.5">
+                            <MapIcon className="size-3.5" />
+                            {t("submit_need.pin_location")}
+                        </Label>
+                        <MapPicker 
+                            onLocationSelect={(lat, lng) => setCoords({ lat, lng })}
+                            initialLat={coords?.lat}
+                            initialLng={coords?.lng}
+                            center={mapCenter}
+                        />
+                        <p className="text-[10px] text-muted-foreground">{t("submit_need.pin_description")}</p>
                     </div>
 
                     <div className="space-y-2">
@@ -320,7 +447,7 @@ export default function SubmitNeedPage() {
                         <Textarea
                             id="raw-description"
                             placeholder={t("submit_need.placeholder_need")}
-                            className="min-h-[200px] resize-y"
+                            className="min-h-[150px] resize-y"
                             value={rawDescription}
                             onChange={(e) => setRawDescription(e.target.value)}
                             disabled={isAnalyzing}
@@ -344,7 +471,7 @@ export default function SubmitNeedPage() {
                         ) : (
                             <>
                                 <Sparkles className="mr-2 size-4" />
-                                {t("submit_need.btn_analyze")}
+                                {!coords ? t("submit_need.btn_pin_first") : t("submit_need.btn_analyze")}
                             </>
                         )}
                     </Button>

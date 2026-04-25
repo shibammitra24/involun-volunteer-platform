@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
     LayoutDashboard,
@@ -21,6 +22,8 @@ import {
     Check,
     Eye,
     CheckCircle2,
+    Map as MapIcon,
+    ExternalLink
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
@@ -54,6 +57,12 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 
+// Dynamic import for MapView
+const MapView = dynamic(() => import("@/components/map-view"), { 
+    ssr: false,
+    loading: () => <div className="h-[200px] w-full bg-muted animate-pulse rounded-md flex items-center justify-center text-muted-foreground">Loading Map...</div>
+});
+
 interface Need {
     id: string;
     title: string;
@@ -62,6 +71,8 @@ interface Need {
     urgency: "low" | "medium" | "high" | "critical";
     category: string;
     location: string;
+    latitude?: number;
+    longitude?: number;
     status: "open" | "assigned" | "completed";
     submitter_name?: string;
     created_at: string;
@@ -332,8 +343,8 @@ export default function CoordinatorDashboardPage() {
     const filteredNeeds = useMemo(() => {
         return needs.filter((need) => {
             const matchesSearch =
-                need.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                need.location?.toLowerCase().includes(searchQuery.toLowerCase());
+                (need.title?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+                (need.location?.toLowerCase() || "").includes(searchQuery.toLowerCase());
             const matchesUrgency =
                 urgencyFilter === "all" || need.urgency === urgencyFilter;
             const matchesCategory =
@@ -593,7 +604,33 @@ export default function CoordinatorDashboardPage() {
 
                                 {/* Raw Description Section */}
                                 <div className="space-y-2">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Original Report</h4>
+                                 {/* Map Section */}
+                                 {selectedNeed.latitude && selectedNeed.longitude && (
+                                     <div className="space-y-2">
+                                         <div className="flex items-center justify-between">
+                                             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                                 <MapIcon className="size-3.5" />
+                                                 Exact Location
+                                             </h4>
+                                             <Button 
+                                                 variant="ghost" 
+                                                 size="sm" 
+                                                 className="h-7 text-[10px] gap-1 text-primary"
+                                                 onClick={() => window.open(`https://www.google.com/maps?q=${selectedNeed.latitude},${selectedNeed.longitude}`, '_blank')}
+                                             >
+                                                 <ExternalLink className="size-3" />
+                                                 Open in Maps
+                                             </Button>
+                                         </div>
+                                         <MapView 
+                                             lat={selectedNeed.latitude} 
+                                             lng={selectedNeed.longitude} 
+                                             title={selectedNeed.title} 
+                                         />
+                                     </div>
+                                 )}
+
+                                     <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Original Report</h4>
                                     <div className="rounded-lg bg-muted/50 p-4 text-sm leading-relaxed whitespace-pre-wrap">
                                         {selectedNeed.raw_description}
                                     </div>

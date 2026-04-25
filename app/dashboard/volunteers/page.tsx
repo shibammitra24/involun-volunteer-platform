@@ -53,7 +53,7 @@ export default function VolunteersPage() {
     const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
-        if (user && user.role !== "coordinator") {
+        if (user && user.role !== "coordinator" && user.role !== "field_staff") {
             router.replace("/dashboard");
         }
     }, [user, router]);
@@ -72,7 +72,7 @@ export default function VolunteersPage() {
             }
         };
 
-        if (user?.role === "coordinator") {
+        if (user?.role === "coordinator" || user?.role === "field_staff") {
             fetchVolunteers();
         }
     }, [user]);
@@ -85,7 +85,7 @@ export default function VolunteersPage() {
         );
     }, [volunteers, searchQuery]);
 
-    if (!user || user.role !== "coordinator") return null;
+    if (!user || (user.role !== "coordinator" && user.role !== "field_staff")) return null;
 
     return (
         <div className="space-y-6">
