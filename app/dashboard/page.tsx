@@ -1,11 +1,22 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { ImpactCounter } from "@/components/impact-counter";
 import { Separator } from "@/components/ui/separator";
 
 export default function DashboardPage() {
     const { user } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (user?.role === "coordinator") {
+            router.replace("/dashboard/coordinator");
+        } else if (user?.role === "volunteer") {
+            router.replace("/dashboard/volunteer");
+        }
+    }, [user, router]);
 
     return (
         <div className="space-y-8 max-w-5xl">

@@ -41,18 +41,25 @@ const NAV_ITEMS = [
         href: "/dashboard/volunteer-registration",
         icon: Users,
         protected: false,
+        roles: ["coordinator", "field_staff"],
+    },
+    {
+        title: "Volunteer Dashboard",
+        href: "/dashboard/volunteer",
+        icon: LayoutDashboard,
+        roles: ["volunteer"],
     },
     {
         title: "Coordinator Dashboard",
         href: "/dashboard/coordinator",
         icon: LayoutDashboard,
-        protected: true,
+        roles: ["coordinator"],
     },
     {
         title: "Volunteers",
         href: "/dashboard/volunteers",
         icon: Users,
-        protected: true,
+        roles: ["coordinator"],
     },
 ];
 
@@ -80,8 +87,14 @@ export function AppSidebar() {
                     <SidebarGroupLabel>Navigation</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {NAV_ITEMS.map((item) => {
+                            {NAV_ITEMS.map((item: any) => {
                                 const isActive = pathname === item.href;
+                                
+                                // Role-based visibility
+                                if (item.roles && !item.roles.includes(user?.role)) {
+                                    return null;
+                                }
+
                                 const isLocked =
                                     item.protected && user?.role !== "coordinator";
 

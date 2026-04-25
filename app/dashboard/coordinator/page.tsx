@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
     LayoutDashboard,
+    Shield,
     ShieldAlert,
     Search,
     Filter,
@@ -87,6 +88,39 @@ export default function CoordinatorDashboardPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Notification Audio for Interests
+    const interestSound = useMemo(() => {
+        if (typeof Audio === 'undefined') return null;
+        const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3");
+        audio.volume = 1.0;
+        return audio;
+    }, []);
+    const isInitialInterestsLoad = useRef(true);
+
+    useEffect(() => {
+        if (user?.role === "coordinator") {
+            // Listen for NEW interests globally
+            const interestsQuery = query(collection(db, "interests"));
+            const unsubscribeInterests = onSnapshot(interestsQuery, (snapshot) => {
+                if (isInitialInterestsLoad.current) {
+                    isInitialInterestsLoad.current = false;
+                    return;
+                }
+
+                // Check for additions
+                const added = snapshot.docChanges().some(change => change.type === "added");
+                if (added && interestSound) {
+                    interestSound.play().catch(e => console.log("Audio play blocked", e));
+                    toast.info("New Interest Expressed!", {
+                        description: "A volunteer is ready to help with a task."
+                    });
+                }
+            });
+
+            return () => unsubscribeInterests();
+        }
+    }, [user, interestSound]);
+
     // Filters
     const [searchQuery, setSearchQuery] = useState("");
     const [urgencyFilter, setUrgencyFilter] = useState("all");
@@ -99,25 +133,37 @@ export default function CoordinatorDashboardPage() {
     const [isAssigning, setIsAssigning] = useState<string | null>(null); // volunteer_id being assigned
     const [matchingResults, setMatchingResults] = useState<any[] | null>(null);
     const [currentAssignments, setCurrentAssignments] = useState<any[] | null>(null);
+    const [interestedVolunteers, setInterestedVolunteers] = useState<any[] | null>(null);
 
     useEffect(() => {
-        const fetchAssignments = async () => {
-            if (!selectedNeed || selectedNeed.status === "open") {
+        const fetchDetails = async () => {
+            if (!selectedNeed) {
                 setCurrentAssignments(null);
+                setInterestedVolunteers(null);
                 return;
             }
 
             try {
-                const res = await fetch(`/api/get-assignments?need_id=${selectedNeed.id}`);
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || "Failed to fetch assignments");
-                setCurrentAssignments(data.assignments);
+                // Fetch assignments
+                if (selectedNeed.status !== "open") {
+                    const res = await fetch(`/api/get-assignments?need_id=${selectedNeed.id}`);
+                    const data = await res.json();
+                    if (res.ok) setCurrentAssignments(data.assignments);
+                } else {
+                    setCurrentAssignments(null);
+                }
+
+                // Fetch interested volunteers
+                const resInt = await fetch(`/api/get-interested-volunteers?need_id=${selectedNeed.id}`);
+                const dataInt = await resInt.json();
+                if (resInt.ok) setInterestedVolunteers(dataInt.volunteers);
+
             } catch (err) {
-                console.error("Fetch Assignments Error:", err);
+                console.error("Fetch Details Error:", err);
             }
         };
 
-        fetchAssignments();
+        fetchDetails();
     }, [selectedNeed]);
 
     // Impact Report states
@@ -512,7 +558,7 @@ export default function CoordinatorDashboardPage() {
                                 <SheetTitle className="text-xl leading-tight">
                                     {selectedNeed.title}
                                 </SheetTitle>
-                                <SheetDescription className="flex items-center gap-2 pt-1 text-xs">
+                                <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
                                     <MapPin className="size-3" />
                                     {selectedNeed.location || "Unknown location"}
                                     <Separator orientation="vertical" className="h-3 mx-1" />
@@ -525,7 +571,7 @@ export default function CoordinatorDashboardPage() {
                                             By {selectedNeed.submitter_name}
                                         </>
                                     )}
-                                </SheetDescription>
+                                </div>
                             </SheetHeader>
 
                             <div className="flex-1 overflow-y-auto py-6 space-y-6 pr-2">
@@ -553,21 +599,67 @@ export default function CoordinatorDashboardPage() {
                                     </div>
                                 </div>
 
-                                {/* Action Section */}
-                                <div className="space-y-3 pt-4">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                        Volunteer Matching
+                                {selectedNeed.status === "open" && (
+                                    <div className="space-y-4 pt-4 border-t">
+                                        <div className="flex items-center gap-2 text-primary">
+                                            <Users className="size-4" />
+                                            <h4 className="text-xs font-bold uppercase tracking-wider">Interested Volunteers</h4>
+                                        </div>
+                                        
+                                        {!interestedVolunteers ? (
+                                            <div className="flex justify-center py-4">
+                                                <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                                            </div>
+                                        ) : interestedVolunteers.length === 0 ? (
+                                            <p className="text-[11px] text-muted-foreground italic px-1">
+                                                No volunteers have expressed interest yet.
+                                            </p>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {interestedVolunteers.map((vol) => (
+                                                    <div key={vol.id} className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-sm font-bold">{vol.name}</p>
+                                                                <p className="text-[10px] text-muted-foreground">{vol.email}</p>
+                                                            </div>
+                                                            <Button 
+                                                                size="sm" 
+                                                                className="h-7 text-[10px] px-3 bg-primary"
+                                                                onClick={() => handleAssign(vol.id, `Expressed direct interest in helping with "${selectedNeed.title}".`)}
+                                                                disabled={isAssigning !== null}
+                                                            >
+                                                                {isAssigning === vol.id ? <Loader2 className="size-3 animate-spin" /> : "Direct Assign"}
+                                                            </Button>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-[10px] text-primary/70 italic">
+                                                            <Tag className="size-3" />
+                                                            <span>Expressed interest on {new Date(vol.created_at).toLocaleDateString()}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* AI Volunteer Matching Section */}
+                                <div className="space-y-3 pt-6 border-t">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                        <Shield className="size-3.5" />
+                                        AI Talent Search (System Suggestions)
                                     </h4>
+                                    
                                     {!matchingResults ? (
                                         <Button
-                                            className="w-full justify-center gap-2"
+                                            className="w-full justify-center gap-2 h-10"
                                             onClick={handleFindMatches}
                                             disabled={isMatching}
                                         >
                                             {isMatching ? (
                                                 <>
                                                     <Loader2 className="size-4 animate-spin" />
-                                                    Analyzing Volunteers...
+                                                    Analyzing All Volunteers...
                                                 </>
                                             ) : (
                                                 <>
@@ -633,7 +725,7 @@ export default function CoordinatorDashboardPage() {
                                                 className="w-full text-[10px]"
                                                 onClick={() => setMatchingResults(null)}
                                             >
-                                                Reset Matches
+                                                Reset Suggestions
                                             </Button>
                                         </div>
                                     )}

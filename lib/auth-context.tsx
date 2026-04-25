@@ -9,17 +9,18 @@ import {
     type ReactNode,
 } from "react";
 
-export type Role = "coordinator" | "field_staff";
+export type Role = "coordinator" | "field_staff" | "volunteer";
 
 export interface AuthUser {
     email: string;
     role: Role;
+    name?: string;
 }
 
 interface AuthContextValue {
     user: AuthUser | null;
     isLoading: boolean;
-    login: (role: Role) => void;
+    login: (role: Role, name?: string) => void;
     logout: () => void;
 }
 
@@ -45,8 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
     }, []);
 
-    const login = useCallback((role: Role) => {
-        const newUser = { email: DUMMY_EMAIL, role };
+    const login = useCallback((role: Role, name?: string) => {
+        const newUser = { 
+            email: name ? `${name.toLowerCase().replace(/\s+/g, '.')}@involun.org` : DUMMY_EMAIL, 
+            role,
+            name 
+        };
         setUser(newUser);
         localStorage.setItem("involun_user", JSON.stringify(newUser));
     }, []);

@@ -35,10 +35,17 @@ const ROLES: { value: Role; label: string; description: string }[] = [
         label: "Field Staff",
         description: "View assignments & update status",
     },
+    {
+        value: "volunteer",
+        label: "Volunteer",
+        description: "Browse opportunities & track impact",
+    },
 ];
 
 export default function LoginPage() {
     const [selectedRole, setSelectedRole] = useState<Role | "">("");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
     const { user, isLoading, login } = useAuth();
     const router = useRouter();
 
@@ -48,11 +55,29 @@ export default function LoginPage() {
         }
     }, [user, isLoading, router]);
 
+    // Automatically set default credentials based on role
+    useEffect(() => {
+        if (selectedRole === "coordinator") {
+            setUsername("admin");
+            setPassword("admin123");
+        } else if (selectedRole === "field_staff") {
+            setUsername("field_staff_01");
+            setPassword("staff123");
+        } else if (selectedRole === "volunteer") {
+            setUsername("Demo Volunteer");
+            setPassword("volunteer123");
+        } else {
+            setUsername("");
+            setPassword("");
+        }
+    }, [selectedRole]);
+
     if (isLoading) return null;
 
     const handleLogin = () => {
-        if (!selectedRole) return;
-        login(selectedRole);
+        if (!selectedRole || !username) return;
+        // In this dummy system, password check is bypassed or fixed
+        login(selectedRole, username);
         router.push("/dashboard");
     };
 
@@ -66,7 +91,7 @@ export default function LoginPage() {
                     </div>
                     <h1 className="text-2xl font-bold tracking-tight">InVolun</h1>
                     <p className="text-sm text-muted-foreground">
-                        Dummy auth &mdash; no real login required
+                        Demo Environment &mdash; Use provided credentials
                     </p>
                 </div>
 
@@ -75,44 +100,20 @@ export default function LoginPage() {
                     <CardHeader className="space-y-1 pb-4">
                         <CardTitle className="text-lg">Sign in</CardTitle>
                         <CardDescription>
-                            Choose a role to continue as a demo user.
+                            Select your role and enter your name/username.
                         </CardDescription>
                     </CardHeader>
 
                     <CardContent className="space-y-4">
-                        {/* Email (read-only) */}
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value="admin@involun.org"
-                                readOnly
-                                className="cursor-default opacity-70"
-                            />
-                        </div>
-
-                        {/* Password (read-only) */}
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                value="••••••••••••"
-                                readOnly
-                                className="cursor-default opacity-70"
-                            />
-                        </div>
-
                         {/* Role selector */}
                         <div className="space-y-2">
-                            <Label htmlFor="role">Role</Label>
+                            <Label htmlFor="role">Account Type</Label>
                             <Select
                                 value={selectedRole}
                                 onValueChange={(v) => setSelectedRole(v as Role)}
                             >
                                 <SelectTrigger id="role" className="w-full">
-                                    <SelectValue placeholder="Select a role…" />
+                                    <SelectValue placeholder="Select account type…" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {ROLES.map((r) => (
@@ -127,24 +128,49 @@ export default function LoginPage() {
                             </Select>
                         </div>
 
+                        {/* Username */}
+                        <div className="space-y-2">
+                            <Label htmlFor="username">Username / Full Name</Label>
+                            <Input
+                                id="username"
+                                type="text"
+                                placeholder={selectedRole === 'volunteer' ? "Enter your registered name" : "admin"}
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                disabled={!selectedRole || selectedRole === 'coordinator'}
+                            />
+                        </div>
+
+                        {/* Password */}
+                        <div className="space-y-2">
+                            <Label htmlFor="password">Password</Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                value={password}
+                                readOnly
+                                className="cursor-default bg-muted/30"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                                * Password is pre-set for demo security
+                            </p>
+                        </div>
+
                         {/* Submit */}
                         <Button
                             className="w-full"
                             size="lg"
-                            disabled={!selectedRole}
+                            disabled={!selectedRole || !username}
                             onClick={handleLogin}
                         >
                             <LogIn className="mr-2 size-4" />
-                            Continue as{" "}
-                            {selectedRole
-                                ? ROLES.find((r) => r.value === selectedRole)?.label
-                                : "…"}
+                            Sign in as {selectedRole ? ROLES.find(r => r.value === selectedRole)?.label : "..."}
                         </Button>
                     </CardContent>
                 </Card>
 
                 <p className="text-center text-xs text-muted-foreground">
-                    This is a demo environment. No credentials are stored.
+                    Volunteers: Use the name you registered with.
                 </p>
             </div>
         </div>
